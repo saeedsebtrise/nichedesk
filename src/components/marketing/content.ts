@@ -8,47 +8,55 @@ import type { IconName } from "./icons";
  * tool actually does — there are no invented user counts, ratings or quotes.
  */
 
-export type ShowcaseRow = {
-  id: "import" | "niche-tree" | "work-queue";
+export type StoryStep = {
+  id: "upload" | "filter" | "sort" | "work";
   eyebrow: string;
   title: string;
   body: string;
   points: string[];
 };
 
-export const SHOWCASE: ShowcaseRow[] = [
+export const STORY: StoryStep[] = [
   {
-    id: "import",
-    eyebrow: "Import & filter",
-    title: "Drop in the eRank CSV. Keep only what is worth making.",
-    body: "The import preview holds the whole export without saving a thing. Narrow 120 rows to the 60 that contain “png”, knock out anything with “free”, set a volume floor and a competition ceiling — then select everything that survived in one click.",
+    id: "upload",
+    eyebrow: "Upload",
+    title: "Drop in your eRank export.",
+    body: "Upload the CSV and NicheDesk reads it on the spot — even with eRank’s title line on top — and tells you exactly how many keywords arrived.",
     points: [
-      "Finds the header row even under eRank’s title line",
       "Reads 10,971,543, 1.2K and 2M as real numbers",
       "Matches columns by name, whatever your plan exports",
-      "Drops duplicate keywords in the file before you see them",
+      "Drops duplicate keywords before you see them",
     ],
   },
   {
-    id: "niche-tree",
-    eyebrow: "Nested niche tree",
-    title: "Parent to subniche, as deep as your shop goes.",
-    body: "Research broad, sell narrow. File “christmas tree png” under “christmas png” under “png”, and every view understands the branch: filter the parent to see the whole family, or one subniche to see a single shelf.",
+    id: "filter",
+    eyebrow: "Filter",
+    title: "Keep only what is worth making.",
+    body: "The preview holds the whole export without saving a thing. Include or exclude words, set a volume floor and a competition ceiling, then select everything that survived in one click.",
     points: [
-      "Create a subniche right inside the Add to a niche dialog",
-      "Rolled-up counts show what sits in every branch",
-      "Re-nest any time — a niche can never be moved inside itself",
-      "Delete a parent and choose: lift its contents, or remove the branch",
+      "Including, excluding, volume and competition filters",
+      "Select all matching — even 1,000+ rows at once",
+      "Nothing is saved until you choose a niche",
     ],
   },
   {
-    id: "work-queue",
-    eyebrow: "Upcoming Work",
-    title: "A work queue, colour-coded against your own standard.",
-    body: "Saved keywords become a desk you sit down at. Sort by volume, colour competition with the cut-offs you trust, set trend and hat type, tick what you are making this week, and mark rows done as listings go live.",
+    id: "sort",
+    eyebrow: "Auto subniches",
+    title: "Pick one category. The subniches build themselves.",
+    body: "Send the keywords to a category like “Invitation” and NicheDesk splits them into wedding, birthday, party and shower invitations — previewed before you save.",
     points: [
-      "Competition colours from three thresholds you set",
-      "Evergreen, seasonal or trending — white, grey or black hat",
+      "Live preview of every subniche and its keyword count",
+      "Choose how many keywords a subniche needs",
+      "Existing subniches are reused, keywords never duplicated",
+    ],
+  },
+  {
+    id: "work",
+    eyebrow: "Work the queue",
+    title: "Work through it, colour by colour.",
+    body: "Saved keywords become a desk you sit down at: sort by volume, read competition by colour, set trend and hat type, tick what you are making, and mark rows done as listings go live.",
+    points: [
+      "Competition colours from your own three cut-offs",
       "Pending, done and ticked-only filters",
       "Export the current view straight to CSV",
     ],
@@ -100,26 +108,6 @@ export const FEATURES: Feature[] = [
     icon: "lock",
     title: "No account, no tracking",
     body: "Open it and start working. There is no signup, and no analytics watching what you research.",
-  },
-];
-
-export type Step = {
-  title: string;
-  body: string;
-};
-
-export const STEPS: Step[] = [
-  {
-    title: "Export from eRank",
-    body: "Run a keyword search, then Export → Download as CSV. Any CSV with a keyword column works, so a hand-made list is fine too.",
-  },
-  {
-    title: "Filter the preview",
-    body: "Upload the file on Sort Keyword. Narrow the rows to the ones that matter, select all matching, and choose a niche — or create a subniche right there.",
-  },
-  {
-    title: "Work through the desk",
-    body: "Upcoming Work is your queue: sort by volume, read competition by colour, tick what you are making, and mark rows done as you publish.",
   },
 ];
 

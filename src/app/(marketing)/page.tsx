@@ -6,9 +6,10 @@ import { Faq } from "@/components/marketing/Faq";
 import { FinalCta } from "@/components/marketing/FinalCta";
 import { Guide } from "@/components/marketing/Guide";
 import { Hero } from "@/components/marketing/Hero";
+import { KeywordMarquee } from "@/components/marketing/KeywordMarquee";
 import { ProofStrip } from "@/components/marketing/ProofStrip";
-import { Showcase } from "@/components/marketing/Showcase";
-import { Steps } from "@/components/marketing/Steps";
+import { StickyStory } from "@/components/marketing/StickyStory";
+import { TreeSection } from "@/components/marketing/TreeSection";
 import { JsonLd } from "@/components/shared/JsonLd";
 
 export const metadata: Metadata = {
@@ -20,10 +21,11 @@ export default function HomePage() {
     <>
       <JsonLd />
       <Hero />
+      <KeywordMarquee />
       <ProofStrip />
-      <Showcase />
+      <StickyStory />
+      <TreeSection />
       <Bento />
-      <Steps />
       <Comparison />
       <Guide />
       <Faq />

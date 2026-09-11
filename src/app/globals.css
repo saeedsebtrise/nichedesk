@@ -13,7 +13,9 @@
 
   --color-brand-50: #fff3ec;
   --color-brand-100: #ffe1d1;
+  --color-brand-200: #ffc9ab;
   --color-brand-300: #ffab7d;
+  --color-brand-400: #fb8a4b;
   --color-brand-500: #f4671f;
   --color-brand-600: #e2560f;
   --color-brand-700: #b8430a;
@@ -21,6 +23,11 @@
   --color-ink-900: #24170f;
   --color-ink-700: #5c4636;
   --color-ink-500: #8a7263;
+
+  /* Dark marketing sections: warm near-black, never neutral grey. */
+  --color-night-950: #0c0806;
+  --color-night-900: #150e0a;
+  --color-night-800: #21170f;
 
   /* Families come from next/font in the root layout; the stacks are fallbacks. */
   --font-sans:
@@ -119,6 +126,87 @@ select {
   to {
     opacity: 1;
     transform: none;
+  }
+}
+
+/* Film grain over dark sections, so large flat areas do not band. */
+.bg-noise {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+
+/* Slow drifting light behind the hero and the final call to action. */
+@keyframes aurora {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  33% {
+    transform: translate3d(7%, -5%, 0) scale(1.1);
+  }
+  66% {
+    transform: translate3d(-6%, 6%, 0) scale(0.94);
+  }
+}
+
+.aurora-blob {
+  animation: aurora 18s ease-in-out infinite;
+}
+
+/* Endless keyword strip: the content is doubled, so -50% loops seamlessly. */
+@keyframes marquee {
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+.marquee {
+  animation: marquee 55s linear infinite;
+}
+
+.marquee-reverse {
+  animation-direction: reverse;
+}
+
+.marquee-track:hover .marquee {
+  animation-play-state: paused;
+}
+
+/* A spark running along a connector in the flow diagram. */
+@keyframes travel {
+  from {
+    left: 0%;
+    opacity: 0;
+  }
+  15%,
+  85% {
+    opacity: 1;
+  }
+  to {
+    left: 100%;
+    opacity: 0;
+  }
+}
+
+.travel-dot {
+  animation: travel 1.8s ease-in-out infinite;
+}
+
+@keyframes spin-slow {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+.spin-slow {
+  animation: spin-slow 9s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aurora-blob,
+  .marquee,
+  .travel-dot,
+  .spin-slow {
+    animation: none !important;
   }
 }
 

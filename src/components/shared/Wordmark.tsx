@@ -1,9 +1,20 @@
 import Link from "next/link";
 
 import { siteConfig } from "@/config/site";
+import { cn } from "@/lib/utils";
 
-/** The logo lockup, linking home unless it already is home. */
-export function Wordmark({ href = "/", subtitle = true }: { href?: string; subtitle?: boolean }) {
+/** The logo lockup, linking home. `tone="dark"` is for use on dark backgrounds. */
+export function Wordmark({
+  href = "/",
+  subtitle = true,
+  tone = "light",
+}: {
+  href?: string;
+  subtitle?: boolean;
+  tone?: "light" | "dark";
+}) {
+  const dark = tone === "dark";
+
   return (
     <Link href={href} className="group flex items-center gap-3">
       <span
@@ -13,11 +24,18 @@ export function Wordmark({ href = "/", subtitle = true }: { href?: string; subti
         N
       </span>
       <span>
-        <span className="font-display block text-lg leading-tight font-extrabold tracking-tight text-ink-900">
+        <span
+          className={cn(
+            "font-display block text-lg leading-tight font-extrabold tracking-tight",
+            dark ? "text-white" : "text-ink-900",
+          )}
+        >
           Niche<span className="text-brand-500">Desk</span>
         </span>
         {subtitle ? (
-          <span className="block text-[11px] text-ink-500">Tool by {siteConfig.author}</span>
+          <span className={cn("block text-[11px]", dark ? "text-cream-200/60" : "text-ink-500")}>
+            Tool by {siteConfig.author}
+          </span>
         ) : null}
       </span>
     </Link>
