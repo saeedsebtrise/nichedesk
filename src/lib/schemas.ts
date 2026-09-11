@@ -91,6 +91,34 @@ export const licenseActionSchema = z.object({
   action: z.enum(["revoke", "reset-devices"]),
 });
 
+export const mergeSchema = z.object({
+  groups: z
+    .array(
+      z.object({
+        keepId: z.string().min(1),
+        mergeIds: z.array(z.string().min(1)).min(1).max(1_000),
+      }),
+    )
+    .min(1, "Nothing to merge.")
+    .max(5_000),
+});
+
+/** What the extension sends: its license, and the keywords read off an eRank page. */
+export const inboxSendSchema = licenseCheckSchema.extend({
+  label: z.string().trim().max(200).default(""),
+  source: z.enum(["erank", "extension"]).default("erank"),
+  rows: z
+    .array(
+      z.object({
+        keyword: z.string().min(1).max(300),
+        volume: count,
+        competition: count,
+      }),
+    )
+    .min(1, "There are no keywords to send.")
+    .max(5_000, "That is more than 5,000 keywords — send a smaller page."),
+});
+
 export const settingsPatchSchema = z
   .object({
     competitionRules: z

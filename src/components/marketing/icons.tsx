@@ -189,6 +189,34 @@ export const Circle = (props: IconProps) => (
   </Svg>
 );
 
+export const Calendar = (props: IconProps) => (
+  <Svg {...props}>
+    <rect x="3.5" y="5" width="17" height="15" rx="2" />
+    <path d="M3.5 10h17M8 3v4M16 3v4" />
+  </Svg>
+);
+
+export const Copies = (props: IconProps) => (
+  <Svg {...props}>
+    <rect x="8" y="8" width="12" height="12" rx="2" />
+    <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" />
+  </Svg>
+);
+
+export const TrendUp = (props: IconProps) => (
+  <Svg {...props}>
+    <path d="m3 17 6-6 4 4 8-8" />
+    <path d="M15 7h6v6" />
+  </Svg>
+);
+
+export const Inbox = (props: IconProps) => (
+  <Svg {...props}>
+    <path d="M3 13h5l1.5 3h5L16 13h5" />
+    <path d="M5.5 5h13l2.5 8v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-5Z" />
+  </Svg>
+);
+
 export type IconName =
   | "tree"
   | "upload"

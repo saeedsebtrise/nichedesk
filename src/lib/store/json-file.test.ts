@@ -2,7 +2,7 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { JsonFileStore } from "./json-file";
 import { StoreValidationError } from "./types";
@@ -339,7 +339,7 @@ describe("licenses", () => {
   it("never exposes license keys through read()", async () => {
     await store.createLicense({ days: 30, note: "", maxDevices: 3 });
 
-    expect(Object.keys(await store.read())).toEqual(["niches", "keywords", "settings"]);
+    expect(Object.keys(await store.read())).toEqual(["niches", "keywords", "settings", "inbox"]);
     await expect(readFile(file, "utf8")).resolves.toContain("NDSK-");
   });
 
@@ -400,5 +400,95 @@ describe("licenses", () => {
     await expect(store.updateLicense("NDSK-AAAA-BBBB-CCCC", "revoke")).rejects.toThrow(
       StoreValidationError,
     );
+  });
+});
+
+describe("keyword history", () => {
+  it("records a reading per import day and refreshes every saved copy", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(new Date("2026-07-01T10:00:00Z"));
+      const png = await store.createNiche({ name: "png", parentId: null });
+      const spooky = await store.createNiche({ name: "spooky", parentId: null });
+      await store.importKeywords([row("ghost png", 100, 50)], png.id);
+      await store.importKeywords([row("ghost png", 100, 50)], spooky.id);
+
+      vi.setSystemTime(new Date("2026-08-01T10:00:00Z"));
+      const again = await store.importKeywords([row("ghost png", 180, 40)], png.id);
+
+      expect(again).toEqual({ added: 0, skipped: 1, updated: 2 });
+      const copies = (await store.read()).keywords;
+      expect(copies).toHaveLength(2);
+      for (const copy of copies) {
+        expect(copy).toMatchObject({ volume: 180, competition: 40 });
+        expect(copy.history?.map((reading) => [reading.at.slice(0, 10), reading.volume])).toEqual([
+          ["2026-07-01", 100],
+          ["2026-08-01", 180],
+        ]);
+      }
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("records a number corrected by hand", async () => {
+    const keyword = await store.createKeyword({ keyword: "a", volume: 10, competition: 5, nicheId: null });
+
+    const edited = await store.updateKeyword(keyword.id, { volume: 25 });
+
+    expect(edited.volume).toBe(25);
+    expect(edited.history?.[edited.history.length - 1]).toMatchObject({ volume: 25, competition: 5 });
+  });
+});
+
+describe("mergeKeywords", () => {
+  it("keeps one copy, carries over ticks and done work, and removes the rest", async () => {
+    const keep = await store.createKeyword({ keyword: "christmas png", volume: 500, competition: 10, nicheId: null });
+    const other = await store.createKeyword({ keyword: "png christmas", volume: 90, competition: 10, nicheId: null });
+    await store.updateKeyword(other.id, { tick: true, status: "done" });
+
+    const result = await store.mergeKeywords([{ keepId: keep.id, mergeIds: [keep.id, other.id] }]);
+
+    expect(result).toEqual({ merged: 1, removed: 1 });
+    const keywords = (await store.read()).keywords;
+    expect(keywords).toHaveLength(1);
+    expect(keywords[0]).toMatchObject({ id: keep.id, volume: 500, tick: true, status: "done" });
+  });
+
+  it("rejects a keeper that no longer exists", async () => {
+    await expect(store.mergeKeywords([{ keepId: "nope", mergeIds: ["x"] }])).rejects.toThrow(StoreValidationError);
+  });
+});
+
+describe("extension inbox", () => {
+  it("stores batches newest first, dropping blanks and repeats", async () => {
+    await store.addInboxBatch({ source: "erank", label: "first", rows: [{ keyword: "a", volume: 1, competition: 2 }] });
+
+    const batch = await store.addInboxBatch({
+      source: "erank",
+      label: " christmas png ",
+      rows: [
+        { keyword: "Santa PNG", volume: 10.4, competition: 5 },
+        { keyword: "santa png", volume: 1, competition: 1 },
+        { keyword: "  ", volume: 1, competition: 1 },
+      ],
+    });
+
+    expect(batch.rows).toEqual([{ keyword: "Santa PNG", volume: 10, competition: 5 }]);
+    expect((await store.read()).inbox.map((b) => b.label)).toEqual(["christmas png", "first"]);
+  });
+
+  it("refuses a batch with nothing in it", async () => {
+    await expect(
+      store.addInboxBatch({ source: "erank", label: "", rows: [{ keyword: " ", volume: 0, competition: 0 }] }),
+    ).rejects.toThrow(StoreValidationError);
+  });
+
+  it("removes a batch once it has been opened", async () => {
+    const batch = await store.addInboxBatch({ source: "erank", label: "x", rows: [{ keyword: "a", volume: 1, competition: 1 }] });
+
+    await store.removeInboxBatch(batch.id);
+
+    expect((await store.read()).inbox).toEqual([]);
   });
 });

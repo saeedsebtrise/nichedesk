@@ -1,5 +1,6 @@
 import type { Niche } from "../niches/types";
 import { withDescendantIds } from "../niches/tree";
+import { detectOccasion, type OccasionId } from "./occasions";
 import { opportunityScore } from "./opportunity";
 import type { ImportRow, Keyword, KeywordType, Status, Trend } from "./types";
 
@@ -76,6 +77,8 @@ export type WorkFilters = {
   type: KeywordType | "all";
   minVolume: string;
   maxCompetition: string;
+  /** A seasonal occasion, matched from the keyword's own words (see occasions.ts). */
+  occasion: OccasionId | "all";
 };
 
 export const EMPTY_WORK_FILTERS: WorkFilters = {
@@ -86,6 +89,7 @@ export const EMPTY_WORK_FILTERS: WorkFilters = {
   type: "all",
   minVolume: "",
   maxCompetition: "",
+  occasion: "all",
 };
 
 export function applyWorkFilters(keywords: Keyword[], filters: WorkFilters, niches: Niche[]): Keyword[] {
@@ -107,6 +111,7 @@ export function applyWorkFilters(keywords: Keyword[], filters: WorkFilters, nich
     if (filters.type !== "all" && keyword.type !== filters.type) return false;
     if (keyword.volume < numberOr(filters.minVolume, -Infinity)) return false;
     if (keyword.competition > numberOr(filters.maxCompetition, Infinity)) return false;
+    if (filters.occasion !== "all" && detectOccasion(keyword.keyword)?.id !== filters.occasion) return false;
     return true;
   });
 }

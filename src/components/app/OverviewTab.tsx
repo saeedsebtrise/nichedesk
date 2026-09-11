@@ -3,12 +3,18 @@
 import { motion } from "motion/react";
 import { useMemo } from "react";
 
-import { ArrowRight, Flame, ICONS, Plus } from "@/components/marketing/icons";
+import { PHASE, phaseDetail } from "@/components/app/CalendarTab";
+import { useToday } from "@/components/app/clock";
+import { ArrowRight, Calendar, Copies, Flame, ICONS, Plus } from "@/components/marketing/icons";
 import { EASE } from "@/components/marketing/motion";
 import { NicheTag } from "@/components/niches/NicheTree";
+import { MovementBadge } from "@/components/ui/Movement";
 import { Button } from "@/components/ui/primitives";
 import { ScorePill } from "@/components/ui/ScorePill";
+import { findDuplicates } from "@/features/keywords/duplicates";
 import type { WorkFilters } from "@/features/keywords/filters";
+import { movementOf } from "@/features/keywords/history";
+import { countByOccasion, seasonRows } from "@/features/keywords/occasions";
 import { opportunityScore } from "@/features/keywords/opportunity";
 import { TRENDS, TYPES } from "@/features/keywords/types";
 import { withDescendantIds } from "@/features/niches/tree";
@@ -125,12 +131,16 @@ export function OverviewTab({
   onOpenWork,
   onAddKeyword,
   onManageNiches,
+  onOpenCalendar,
+  onOpenDuplicates,
 }: {
   workspace: Workspace;
   /** Opens Upcoming Work with these filters applied. */
   onOpenWork: (patch: Partial<WorkFilters>) => void;
   onAddKeyword: () => void;
   onManageNiches: () => void;
+  onOpenCalendar: () => void;
+  onOpenDuplicates: () => void;
 }) {
   const { keywords, niches, tree, settings } = workspace;
   const rules = settings.competitionRules;
@@ -191,6 +201,34 @@ export function OverviewTab({
     [tree, niches, keywords, rules],
   );
 
+  const duplicateGroups = useMemo(() => findDuplicates(keywords).length, [keywords]);
+
+  // Biggest volume swings since each keyword's previous reading.
+  const movers = useMemo(
+    () =>
+      keywords
+        .map((keyword) => ({ keyword, movement: movementOf(keyword) }))
+        .flatMap(({ keyword, movement }) =>
+          movement && movement.volume !== null && movement.volume !== 0
+            ? [{ keyword, volume: movement.volume, competition: movement.competition }]
+            : [],
+        )
+        .sort((a, b) => Math.abs(b.volume) - Math.abs(a.volume))
+        .slice(0, 6),
+    [keywords],
+  );
+
+  // Seasonal cards are worked out in the browser only (see clock.ts).
+  const todayKey = useToday();
+  const today = useMemo(() => (todayKey ? new Date(`${todayKey}T12:00:00Z`) : null), [todayKey]);
+  const season = useMemo(() => {
+    if (!today) return null;
+    return seasonRows(today, countByOccasion(keywords))
+      .filter((row) => row.phase === "selling" || row.phase === "make")
+      .sort((a, b) => (a.phase === b.phase ? 0 : a.phase === "selling" ? -1 : 1))
+      .slice(0, 5);
+  }, [today, keywords]);
+
   if (keywords.length === 0) return <Welcome onAddKeyword={onAddKeyword} />;
 
   const tiles = [
@@ -238,6 +276,19 @@ export function OverviewTab({
         </div>
       </section>
 
+      {duplicateGroups > 0 ? (
+        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-amber-400/25 bg-amber-400/[0.07] px-4 py-3">
+          <Copies className="size-5 text-amber-200" />
+          <p className="min-w-0 flex-1 text-sm text-amber-100">
+            {formatNumber(duplicateGroups)} group{duplicateGroups === 1 ? "" : "s"} of possible duplicate keywords — the same
+            search written differently.
+          </p>
+          <Button variant="chip" onClick={onOpenDuplicates}>
+            Review <ArrowRight className="size-4" />
+          </Button>
+        </div>
+      ) : null}
+
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
         {tiles.map((tile) => (
           <button
@@ -254,6 +305,87 @@ export function OverviewTab({
             <span className="mt-1 block truncate text-xs text-cream-200/45">{tile.hint}</span>
           </button>
         ))}
+      </div>
+
+      <div className="grid gap-5 xl:grid-cols-2">
+        <Panel
+          title="Seasonal right now"
+          description="Occasions to make for, and ones buyers are searching"
+          action={
+            <Button variant="chip" onClick={onOpenCalendar}>
+              <Calendar className="size-4" /> Calendar
+            </Button>
+          }
+        >
+          {season === null ? (
+            <div className="h-24" />
+          ) : season.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-white/15 px-4 py-8 text-center text-sm text-cream-200/50">
+              Nothing in season right now — the calendar shows what is next.
+            </p>
+          ) : (
+            <ul className="space-y-2">
+              {season.map((row) => (
+                <li key={row.occasion.id}>
+                  <button
+                    type="button"
+                    onClick={() => (row.total > 0 ? onOpenWork({ occasion: row.occasion.id }) : onOpenCalendar())}
+                    className="flex w-full items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2.5 text-left transition-colors hover:border-white/15 hover:bg-white/[0.05]"
+                  >
+                    <span aria-hidden="true" className="text-xl">
+                      {row.occasion.emoji}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center gap-2">
+                        <span className="font-semibold text-white">{row.occasion.label}</span>
+                        <span className={cn("rounded px-1.5 py-px text-[10px] font-semibold ring-1", PHASE[row.phase].className)}>
+                          {PHASE[row.phase].label}
+                        </span>
+                      </span>
+                      <span className="block text-xs text-cream-200/50">{today ? phaseDetail(row, today) : ""}</span>
+                    </span>
+                    <span className="text-xs text-cream-200/60 tabular-nums">
+                      {row.total > 0 ? `${formatNumber(row.pending)} pending` : "no keywords yet"}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
+
+        <Panel title="Movers" description="Search volume change since each keyword’s previous reading">
+          {movers.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-white/15 px-4 py-8 text-center text-sm text-cream-200/50">
+              Import the same keywords again from a fresh eRank export — the ones that moved show up here.
+            </p>
+          ) : (
+            <ol className="space-y-1.5">
+              {movers.map(({ keyword, volume, competition }) => (
+                <li key={keyword.id}>
+                  <button
+                    type="button"
+                    onClick={() => onOpenWork({ search: keyword.keyword })}
+                    className="flex w-full items-center gap-3 rounded-xl border border-transparent px-3 py-2.5 text-left transition-colors hover:border-white/10 hover:bg-white/[0.04]"
+                  >
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-medium text-white">{keyword.keyword}</span>
+                      <span className="text-xs text-cream-200/45 tabular-nums">vol {formatNumber(keyword.volume)}</span>
+                    </span>
+                    <span className="flex items-center gap-1 text-[11px] text-cream-200/40">
+                      vol <MovementBadge change={volume} goodWhen="up" className="text-xs" />
+                    </span>
+                    {competition ? (
+                      <span className="flex items-center gap-1 text-[11px] text-cream-200/40">
+                        comp <MovementBadge change={competition} goodWhen="down" className="text-xs" />
+                      </span>
+                    ) : null}
+                  </button>
+                </li>
+              ))}
+            </ol>
+          )}
+        </Panel>
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[1.4fr_1fr]">

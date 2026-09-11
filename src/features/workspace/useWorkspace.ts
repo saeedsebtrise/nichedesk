@@ -10,6 +10,8 @@ import type {
   BulkAction,
   ImportResult,
   KeywordPatch,
+  MergeGroup,
+  MergeResult,
   NicheDeleteMode,
   Settings,
   StoreData,
@@ -147,6 +149,13 @@ export function useWorkspace(initial: StoreData) {
           }),
         ),
 
+      /** Folds each group of duplicates into its kept copy. */
+      mergeKeywords: (groups: MergeGroup[]) =>
+        run(() => call<MergeResult>("/api/keywords/merge", { method: "POST", body: body({ groups }) })),
+
+      /** Clears an extension batch once it has been opened in the preview, or dismissed. */
+      dismissInbox: (id: string) => run(() => call(`/api/inbox/${id}`, { method: "DELETE" })),
+
       saveSettings: (patch: Partial<Settings>) =>
         run(() => call<Settings>("/api/settings", { method: "PATCH", body: body(patch) })),
 
@@ -162,6 +171,7 @@ export function useWorkspace(initial: StoreData) {
     niches: data.niches,
     keywords: data.keywords,
     settings: data.settings,
+    inbox: data.inbox,
     tree,
     busy,
     error,

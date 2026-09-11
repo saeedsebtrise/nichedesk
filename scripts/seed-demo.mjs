@@ -69,7 +69,20 @@ const keywords = [
   ["harvest tee", 980, 25269, "fall shirt", "Seasonal", "White hat", "pending", false],
   ["funny cat tee", 1760, 4480, "funny tee", "Evergreen", "Grey hat", "pending", false],
   ["sarcastic tee", 1310, 3050, "funny tee", "Evergreen", "White hat", "done", false],
+  // Two near-duplicates, for the duplicate finder.
+  ["christmas pngs", 1210, 402000, "png", "Seasonal", "White hat", "pending", false],
+  ["funny cat tees", 640, 6200, "funny tee", "Evergreen", "White hat", "pending", false],
 ];
+
+// Earlier readings for a few keywords, as if their exports had been re-imported monthly.
+const HISTORY = {
+  "later gator png": [["2026-06-01", 5120, 390], ["2026-07-15", 6380, 430]],
+  "labubu png": [["2026-06-01", 9800, 610], ["2026-07-15", 8300, 980]],
+  "christmas png": [["2026-06-01", 31000, 880000], ["2026-07-15", 39500, 905000]],
+  "ghost png": [["2026-06-01", 1900, 3300], ["2026-07-15", 2600, 3900]],
+  "grinch png": [["2026-07-15", 5200, 16900]],
+  "cozy season shirt": [["2026-07-15", 1210, 2100]],
+};
 
 const workspace = {
   niches: niches.map(([name, parent]) => ({
@@ -89,6 +102,14 @@ const workspace = {
     status,
     tick,
     createdAt: created,
+    history: [
+      ...(HISTORY[keyword] ?? []).map(([day, reading, listings]) => ({
+        at: `${day}T09:00:00.000Z`,
+        volume: reading,
+        competition: listings,
+      })),
+      { at: created, volume, competition },
+    ],
   })),
   settings: {
     competitionRules: { green: 5000, lightGreen: 10000, orange: 20000 },

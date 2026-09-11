@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { listNiches, sendToNicheDesk } from "../src/lib/nichedesk.js";
+import { listNiches, sendToInbox, sendToNicheDesk } from "../src/lib/nichedesk.js";
 
 const reply = (status, body) => ({ ok: status >= 200 && status < 300, status, json: async () => body });
 
@@ -70,5 +70,59 @@ describe("sendToNicheDesk", () => {
     await expect(
       sendToNicheDesk({ baseUrl: "http://x", nicheName: "n", keywords: [], fetchImpl: vi.fn() }),
     ).rejects.toThrow(/no keywords/);
+  });
+});
+
+describe("sendToInbox", () => {
+  it("posts the license and the page's keywords to the inbox", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(reply(200, { id: "b1", label: "christmas png", count: 2 }));
+
+    const result = await sendToInbox({
+      baseUrl: "https://desk.example.com/",
+      key: "NDSK-1",
+      deviceId: "device-aaaa",
+      label: "christmas png",
+      rows: [
+        { keyword: " santa png ", searches: 900.4, competition: 100 },
+        { keyword: "", searches: 1, competition: 1 },
+        { keyword: "elf png", searches: Number.NaN, competition: 50 },
+      ],
+      fetchImpl,
+    });
+
+    expect(result).toEqual({ count: 2, label: "christmas png" });
+    const [url, init] = fetchImpl.mock.calls[0];
+    expect(url).toBe("https://desk.example.com/api/extension/inbox");
+    expect(init.headers).not.toHaveProperty("authorization");
+    expect(JSON.parse(init.body)).toEqual({
+      key: "NDSK-1",
+      deviceId: "device-aaaa",
+      label: "christmas png",
+      source: "erank",
+      rows: [
+        { keyword: "santa png", volume: 900, competition: 100 },
+        { keyword: "elf png", volume: 0, competition: 50 },
+      ],
+    });
+  });
+
+  it("needs a license key", async () => {
+    await expect(
+      sendToInbox({ baseUrl: "http://x", key: "", deviceId: "device-aaaa", rows: [{ keyword: "a" }], fetchImpl: vi.fn() }),
+    ).rejects.toThrow(/license key/);
+  });
+
+  it("passes the server's refusal on", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(reply(400, { error: "This license has expired." }));
+
+    await expect(
+      sendToInbox({
+        baseUrl: "http://x",
+        key: "NDSK-1",
+        deviceId: "device-aaaa",
+        rows: [{ keyword: "a", searches: 1, competition: 1 }],
+        fetchImpl,
+      }),
+    ).rejects.toThrow(/expired/);
   });
 });

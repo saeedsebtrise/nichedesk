@@ -52,7 +52,7 @@ describe("PostgresStore", () => {
 
     await expect(store.checkLicense(key, "device-aaaa")).resolves.toMatchObject({ valid: true });
     await expect(store.checkLicense(key, "device-bbbb")).resolves.toMatchObject({ reason: "device-limit" });
-    expect(Object.keys(await store.read())).toEqual(["niches", "keywords", "settings"]);
+    expect(Object.keys(await store.read())).toEqual(["niches", "keywords", "settings", "inbox"]);
 
     const ids = (await db.query<{ id: string }>("SELECT id FROM nichedesk_documents ORDER BY id")).rows;
     expect(ids.map((r) => r.id)).toEqual(["licenses"]);

@@ -3,14 +3,15 @@
 import { useMemo, useState, type ReactElement, type ReactNode, type SVGProps } from "react";
 
 import { PaletteShortcut } from "@/components/app/CommandPalette";
-import { ChevronRight, ICONS, LayoutGrid } from "@/components/marketing/icons";
+import { Calendar, ChevronRight, Copies, ICONS, LayoutGrid } from "@/components/marketing/icons";
 import { Wordmark } from "@/components/shared/Wordmark";
+import { findDuplicates } from "@/features/keywords/duplicates";
 import { withDescendantIds } from "@/features/niches/tree";
 import type { NicheNode } from "@/features/niches/types";
 import type { Workspace } from "@/features/workspace/useWorkspace";
 import { cn, formatNumber } from "@/lib/utils";
 
-export type AppTab = "overview" | "sort" | "work";
+export type AppTab = "overview" | "sort" | "work" | "calendar" | "duplicates";
 
 const SearchIcon = ICONS.search;
 
@@ -18,7 +19,15 @@ const NAV: { id: AppTab; label: string; icon: (props: SVGProps<SVGSVGElement>) =
   { id: "overview", label: "Overview", icon: LayoutGrid },
   { id: "sort", label: "Sort Keyword", icon: ICONS.upload },
   { id: "work", label: "Upcoming Work", icon: ICONS.list },
+  { id: "calendar", label: "Season calendar", icon: Calendar },
+  { id: "duplicates", label: "Duplicates", icon: Copies },
 ];
+
+const BADGE: Partial<Record<AppTab, string>> = {
+  sort: "bg-brand-500 text-white",
+  work: "bg-white/[0.08] text-cream-200/70",
+  duplicates: "bg-amber-400/20 text-amber-200",
+};
 
 type Tally = { total: number; done: number };
 
@@ -80,6 +89,12 @@ export function AppSidebar({
   }, [keywords, niches]);
 
   const pending = keywords.filter((keyword) => keyword.status === "pending").length;
+  const duplicateGroups = useMemo(() => findDuplicates(keywords).length, [keywords]);
+  const badges: Partial<Record<AppTab, number>> = {
+    sort: workspace.inbox.length,
+    work: pending,
+    duplicates: duplicateGroups,
+  };
 
   const toggle = (id: string) =>
     setCollapsed((current) => {
@@ -183,9 +198,9 @@ export function AppSidebar({
             >
               <Icon className={cn("size-4", active && "text-brand-300")} />
               {item.label}
-              {item.id === "work" && pending > 0 ? (
-                <span className="ml-auto rounded-md bg-white/[0.08] px-1.5 text-[11px] text-cream-200/70 tabular-nums">
-                  {formatNumber(pending)}
+              {(badges[item.id] ?? 0) > 0 ? (
+                <span className={cn("ml-auto rounded-md px-1.5 text-[11px] font-semibold tabular-nums", BADGE[item.id])}>
+                  {formatNumber(badges[item.id] ?? 0)}
                 </span>
               ) : null}
             </button>

@@ -92,3 +92,34 @@ export async function sendToNicheDesk({
 
   return { nicheId, createdNiche, added: result.added, skipped: result.skipped };
 }
+
+/**
+ * Drops keywords read off an eRank page into the NicheDesk inbox, where they
+ * wait to be opened in Sort Keyword. The server checks the license key; no
+ * niche is touched until the user picks one in the desk.
+ */
+export async function sendToInbox({ baseUrl, key, deviceId, label = "", rows, fetchImpl = (...a) => fetch(...a) }) {
+  if (!key) throw new Error("Add your license key in the extension’s Settings → Connection first.");
+
+  const clean = rows
+    .map((row) => ({
+      keyword: String(row.keyword ?? "").trim(),
+      volume: Math.max(0, Math.round(Number(row.searches ?? row.volume ?? 0))) || 0,
+      competition: Math.max(0, Math.round(Number(row.competition ?? 0))) || 0,
+    }))
+    .filter((row) => row.keyword !== "")
+    .slice(0, 5000);
+  if (clean.length === 0) throw new Error("There are no keywords to send.");
+
+  const body = await call(
+    baseUrl,
+    "/api/extension/inbox",
+    {
+      method: "POST",
+      body: JSON.stringify({ key, deviceId, label: String(label).slice(0, 200), source: "erank", rows: clean }),
+    },
+    fetchImpl,
+    "",
+  );
+  return { count: body.count, label: body.label };
+}

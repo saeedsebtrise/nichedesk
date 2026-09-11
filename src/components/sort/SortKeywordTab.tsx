@@ -3,15 +3,19 @@
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { ArrowRight, Close, ICONS, Plus, Trash } from "@/components/marketing/icons";
+import { timeAgo, useNowMinute } from "@/components/app/clock";
+import { ArrowRight, Close, ICONS, Inbox, Plus, Trash } from "@/components/marketing/icons";
 import { NichePickerModal, type AutoSubniches } from "@/components/niches/NichePickerModal";
+import { MovementBadge } from "@/components/ui/Movement";
 import { Banner, Button, Checkbox, TextInput } from "@/components/ui/primitives";
 import { ScorePill } from "@/components/ui/ScorePill";
 import { useToast } from "@/components/ui/toast";
 import { parseErankCsv } from "@/features/keywords/csv";
 import { EMPTY_IMPORT_FILTERS, applyImportFilters, type ImportFilters } from "@/features/keywords/filters";
+import { percentChange } from "@/features/keywords/history";
 import { opportunityScore } from "@/features/keywords/opportunity";
-import type { ImportRow } from "@/features/keywords/types";
+import type { ImportRow, Keyword } from "@/features/keywords/types";
+import type { InboxBatch } from "@/lib/store/types";
 import { BAND_CLASS, competitionBand } from "@/features/settings/competition";
 import { UPLOAD_EVENT } from "@/features/workspace/events";
 import type { Workspace } from "@/features/workspace/useWorkspace";
@@ -87,15 +91,40 @@ export function SortKeywordTab({ workspace, onShow }: { workspace: Workspace; on
   const targetRows = selectedInView.length > 0 ? selectedInView : filtered;
   const previewKeywords = useMemo(() => targetRows.map((row) => row.keyword), [targetRows]);
 
+  const nowMinute = useNowMinute();
+
+  // Saved keywords by text, so the preview can show what is already in the desk.
+  const savedByText = useMemo(() => {
+    const map = new Map<string, Keyword>();
+    for (const keyword of workspace.keywords) {
+      const key = keyword.keyword.toLowerCase();
+      if (!map.has(key)) map.set(key, keyword);
+    }
+    return map;
+  }, [workspace.keywords]);
+
   const summary = useMemo(() => {
     let scoreSum = 0;
     let low = 0;
+    let saved = 0;
     for (const row of filtered) {
       scoreSum += opportunityScore(row.volume, row.competition);
       if (competitionBand(row.competition, settings.competitionRules) === "green") low += 1;
+      if (savedByText.has(row.keyword.toLowerCase())) saved += 1;
     }
-    return { low, avg: filtered.length > 0 ? Math.round(scoreSum / filtered.length) : 0 };
-  }, [filtered, settings.competitionRules]);
+    return { low, saved, avg: filtered.length > 0 ? Math.round(scoreSum / filtered.length) : 0 };
+  }, [filtered, settings.competitionRules, savedByText]);
+
+  /** Puts a fresh set of rows into the preview, clearing filters and selection. */
+  const showRows = useCallback((parsed: ImportRow[], name: string, parseWarnings: string[]) => {
+    setRows(parsed);
+    setFileName(name);
+    setWarnings(parseWarnings);
+    setFilters(EMPTY_IMPORT_FILTERS);
+    setOpenFilters([]);
+    setSelected(new Set());
+    setVisibleCount(PAGE_SIZE);
+  }, []);
 
   const loadFile = useCallback(
     async (file: File) => {
@@ -107,14 +136,7 @@ export function SortKeywordTab({ workspace, onShow }: { workspace: Workspace; on
         return;
       }
       const { rows: parsed, warnings: parseWarnings } = parseErankCsv(text);
-
-      setRows(parsed);
-      setFileName(file.name);
-      setWarnings(parseWarnings);
-      setFilters(EMPTY_IMPORT_FILTERS);
-      setOpenFilters([]);
-      setSelected(new Set());
-      setVisibleCount(PAGE_SIZE);
+      showRows(parsed, file.name, parseWarnings);
 
       if (parsed.length === 0) {
         toast({
@@ -130,8 +152,20 @@ export function SortKeywordTab({ workspace, onShow }: { workspace: Workspace; on
         detail: `${file.name} · ${formatNumber(parsed.length)} keyword${parsed.length === 1 ? "" : "s"} loaded`,
       });
     },
-    [toast],
+    [toast, showRows],
   );
+
+  /** Opens an extension batch in the preview; once it is here, the inbox copy goes. */
+  const openBatch = async (batch: InboxBatch) => {
+    const parsed = batch.rows.map((row, index) => ({ id: `${batch.id}-${index}`, ...row }));
+    showRows(parsed, `${batch.label} · from eRank`, []);
+    toast({
+      tone: "success",
+      title: "Opened in the preview",
+      detail: `${formatNumber(parsed.length)} keywords from “${batch.label}” — filter them, then add them to a niche.`,
+    });
+    await workspace.dismissInbox(batch.id);
+  };
 
   // The top bar, the command palette and the overview open the picker through a window event.
   useEffect(() => {
@@ -248,6 +282,9 @@ export function SortKeywordTab({ workspace, onShow }: { workspace: Workspace; on
           `; ${formatNumber(result.stayed ?? 0)} stayed in ${where}`
         : null,
       result.skipped > 0 ? `${formatNumber(result.skipped)} skipped — already there` : null,
+      result.updated
+        ? `${formatNumber(result.updated)} saved keyword${result.updated === 1 ? "" : "s"} got fresh numbers`
+        : null,
     ].filter(Boolean);
     toast({
       tone: "success",
@@ -283,6 +320,53 @@ export function SortKeywordTab({ workspace, onShow }: { workspace: Workspace; on
           event.target.value = "";
         }}
       />
+
+      {workspace.inbox.length > 0 ? (
+        <section
+          aria-labelledby="inbox-title"
+          className="rounded-2xl border border-brand-500/30 bg-gradient-to-br from-brand-500/[0.12] to-transparent p-4 sm:p-5"
+        >
+          <div className="flex items-center gap-3">
+            <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-brand-500 text-white shadow-[0_0_24px_-4px_rgba(244,103,31,0.8)]">
+              <Inbox className="size-4" />
+            </span>
+            <div>
+              <h2 id="inbox-title" className="font-semibold text-white">
+                Inbox · from the extension
+              </h2>
+              <p className="text-xs text-cream-200/55">
+                Keywords sent with “Send to NicheDesk” on eRank. Open one to filter it here before it goes in a niche.
+              </p>
+            </div>
+          </div>
+          <ul className="mt-4 space-y-2">
+            {workspace.inbox.map((batch) => (
+              <li
+                key={batch.id}
+                className="flex flex-wrap items-center gap-3 rounded-xl border border-white/[0.08] bg-night-950/40 px-3.5 py-2.5"
+              >
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-medium text-white">{batch.label}</span>
+                  <span className="block text-xs text-cream-200/50">
+                    {formatNumber(batch.rows.length)} keywords{nowMinute !== null ? ` · ${timeAgo(batch.createdAt, nowMinute)}` : ""}
+                  </span>
+                </span>
+                <Button variant="primary" className="px-3 py-1.5 text-xs" disabled={workspace.busy} onClick={() => openBatch(batch)}>
+                  Open in preview
+                </Button>
+                <Button
+                  variant="quiet"
+                  className="px-2.5 py-1.5 text-xs"
+                  disabled={workspace.busy}
+                  onClick={() => workspace.dismissInbox(batch.id)}
+                >
+                  Dismiss
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       {rows.length === 0 ? (
         <>
@@ -356,7 +440,7 @@ export function SortKeywordTab({ workspace, onShow }: { workspace: Workspace; on
 
       {rows.length > 0 ? (
         <>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <MiniStat label="Matching">
               {formatNumber(filtered.length)}
               <span className="text-sm font-medium text-cream-200/45"> / {formatNumber(rows.length)}</span>
@@ -364,6 +448,10 @@ export function SortKeywordTab({ workspace, onShow }: { workspace: Workspace; on
             <MiniStat label="Low competition">{formatNumber(summary.low)}</MiniStat>
             <MiniStat label="Avg. score">
               <ScorePill score={summary.avg} showLabel />
+            </MiniStat>
+            <MiniStat label="Already saved">
+              {formatNumber(summary.saved)}
+              <span className="text-sm font-medium text-cream-200/45"> get fresh numbers</span>
             </MiniStat>
           </div>
 
@@ -556,6 +644,7 @@ export function SortKeywordTab({ workspace, onShow }: { workspace: Workspace; on
                   visibleRows.map((row) => {
                     const band = competitionBand(row.competition, settings.competitionRules);
                     const isSelected = selected.has(row.id);
+                    const saved = savedByText.get(row.keyword.toLowerCase());
 
                     return (
                       <tr
@@ -568,7 +657,18 @@ export function SortKeywordTab({ workspace, onShow }: { workspace: Workspace; on
                         <td className="px-4 py-2.5">
                           <Checkbox checked={isSelected} onChange={() => toggleRow(row.id)} aria-label={`Select ${row.keyword}`} />
                         </td>
-                        <td className="px-4 py-2.5 font-medium text-white">{row.keyword}</td>
+                        <td className="px-4 py-2.5">
+                          <span className="font-medium text-white">{row.keyword}</span>
+                          {saved ? (
+                            <span
+                              title={`Already saved — volume was ${formatNumber(saved.volume)}`}
+                              className="ml-2 inline-flex items-center gap-1 rounded-md bg-white/[0.06] px-1.5 py-0.5 text-[10px] font-semibold text-cream-200/60"
+                            >
+                              Saved
+                              <MovementBadge change={percentChange(saved.volume, row.volume)} goodWhen="up" />
+                            </span>
+                          ) : null}
+                        </td>
                         <td className="px-4 py-2.5">
                           <ScorePill score={opportunityScore(row.volume, row.competition)} />
                         </td>

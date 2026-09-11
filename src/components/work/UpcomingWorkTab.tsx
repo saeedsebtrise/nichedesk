@@ -3,13 +3,17 @@
 import { AnimatePresence, motion } from "motion/react";
 import { useMemo, useState } from "react";
 
-import { Check, Circle, Close, Columns, ICONS, Pencil, Plus, Sliders, Trash } from "@/components/marketing/icons";
+import { Check, Circle, Close, Columns, ICONS, Pencil, Plus, Sliders, Trash, TrendUp } from "@/components/marketing/icons";
 import { EASE } from "@/components/marketing/motion";
 import { NichePickerModal } from "@/components/niches/NichePickerModal";
 import { NicheTag, NicheTreeSelect } from "@/components/niches/NicheTree";
+import { MovementBadge } from "@/components/ui/Movement";
 import { Button, Checkbox, FieldLabel, Select, TextInput } from "@/components/ui/primitives";
 import { ScorePill } from "@/components/ui/ScorePill";
+import { HistoryModal } from "@/components/work/HistoryModal";
 import { KeywordFormModal } from "@/components/work/KeywordFormModal";
+import { movementOf } from "@/features/keywords/history";
+import { OCCASION_BY_ID, OCCASIONS, detectOccasion, type OccasionId } from "@/features/keywords/occasions";
 import { downloadCsv, keywordsToCsv } from "@/features/keywords/export";
 import {
   EMPTY_WORK_FILTERS,
@@ -126,6 +130,7 @@ export function UpcomingWorkTab({
   const [ruleDraft, setRuleDraft] = useState<CompetitionRules>(settings.competitionRules);
   const [editing, setEditing] = useState<Keyword | null>(null);
   const [moveOpen, setMoveOpen] = useState(false);
+  const [historyOf, setHistoryOf] = useState<Keyword | null>(null);
 
   const setFilters = (patch: Partial<WorkFilters>) => onFiltersChange({ ...filters, ...patch });
   const visibleColumns = new Set(settings.visibleColumns);
@@ -152,7 +157,9 @@ export function UpcomingWorkTab({
   const selectedRows = useMemo(() => rows.filter((keyword) => selected.has(keyword.id)), [rows, selected]);
   const allSelected = rows.length > 0 && selectedRows.length === rows.length;
 
-  const advancedCount = (filters.minVolume !== "" ? 1 : 0) + (filters.maxCompetition !== "" ? 1 : 0);
+  const advancedCount =
+    (filters.minVolume !== "" ? 1 : 0) + (filters.maxCompetition !== "" ? 1 : 0) + (filters.occasion !== "all" ? 1 : 0);
+  const activeOccasion = filters.occasion === "all" ? null : OCCASION_BY_ID.get(filters.occasion);
   const filtersActive =
     filters.search !== "" ||
     filters.nicheId !== "all" ||
@@ -330,7 +337,21 @@ export function UpcomingWorkTab({
                       className="max-w-36"
                     />
                   </label>
-                  <Button variant="quiet" onClick={() => setFilters({ minVolume: "", maxCompetition: "" })}>
+                  <label className="flex flex-col gap-1.5">
+                    <FieldLabel>Occasion</FieldLabel>
+                    <Select
+                      value={filters.occasion}
+                      onChange={(event) => setFilters({ occasion: event.target.value as OccasionId | "all" })}
+                    >
+                      <option value="all">All occasions</option>
+                      {OCCASIONS.map((occasion) => (
+                        <option key={occasion.id} value={occasion.id}>
+                          {occasion.emoji} {occasion.label}
+                        </option>
+                      ))}
+                    </Select>
+                  </label>
+                  <Button variant="quiet" onClick={() => setFilters({ minVolume: "", maxCompetition: "", occasion: "all" })}>
                     Clear
                   </Button>
                 </div>
@@ -411,6 +432,19 @@ export function UpcomingWorkTab({
             Showing <span className="font-semibold text-white">{formatNumber(rows.length)}</span> of{" "}
             {formatNumber(keywords.length)}
           </p>
+          {activeOccasion ? (
+            <span className="inline-flex items-center gap-1.5 rounded-lg border border-brand-500/40 bg-brand-500/10 py-1 pr-1 pl-2 text-xs font-semibold text-brand-100">
+              {activeOccasion.emoji} {activeOccasion.label}
+              <button
+                type="button"
+                onClick={() => setFilters({ occasion: "all" })}
+                aria-label="Clear the occasion filter"
+                className="rounded p-0.5 hover:bg-brand-500/25"
+              >
+                <Close className="size-3" />
+              </button>
+            </span>
+          ) : null}
           {filtersActive ? (
             <Button variant="quiet" className="px-2.5 py-1 text-xs" onClick={() => onFiltersChange(EMPTY_WORK_FILTERS)}>
               Reset filters
@@ -516,6 +550,9 @@ export function UpcomingWorkTab({
                   const band = competitionBand(keyword.competition, settings.competitionRules);
                   const done = keyword.status === "done";
                   const isSelected = selected.has(keyword.id);
+                  const movement = movementOf(keyword);
+                  const occasion = detectOccasion(keyword.keyword);
+                  const readings = keyword.history?.length ?? 1;
 
                   return (
                     <tr
@@ -535,6 +572,11 @@ export function UpcomingWorkTab({
                             {keyword.keyword}
                           </span>
                           {visibleColumns.has("niche") && !hideNiche ? <NicheTag niches={niches} nicheId={keyword.nicheId} /> : null}
+                          {occasion ? (
+                            <span className="rounded-md bg-white/[0.05] px-1.5 py-0.5 text-[11px] text-cream-200/65">
+                              {occasion.emoji} {occasion.label}
+                            </span>
+                          ) : null}
                         </div>
                       </td>
 
@@ -543,13 +585,21 @@ export function UpcomingWorkTab({
                       </td>
 
                       {visibleColumns.has("volume") ? (
-                        <td className={cn(TD, "tabular text-right text-cream-200/75")}>{formatNumber(keyword.volume)}</td>
+                        <td className={cn(TD, "text-right")}>
+                          <span className="inline-flex items-center justify-end gap-1.5">
+                            <MovementBadge change={movement?.volume ?? null} goodWhen="up" />
+                            <span className="tabular text-cream-200/75">{formatNumber(keyword.volume)}</span>
+                          </span>
+                        </td>
                       ) : null}
 
                       {visibleColumns.has("competition") ? (
                         <td className={TD}>
-                          <span className={cn("tabular inline-block rounded-md px-2 py-0.5 text-xs font-bold", BAND_CLASS[band])}>
-                            {formatNumber(keyword.competition)}
+                          <span className="inline-flex items-center gap-1.5">
+                            <span className={cn("tabular inline-block rounded-md px-2 py-0.5 text-xs font-bold", BAND_CLASS[band])}>
+                              {formatNumber(keyword.competition)}
+                            </span>
+                            <MovementBadge change={movement?.competition ?? null} goodWhen="down" />
                           </span>
                         </td>
                       ) : null}
@@ -620,6 +670,18 @@ export function UpcomingWorkTab({
                         <div className="inline-flex items-center gap-1 opacity-60 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
                           <button
                             type="button"
+                            onClick={() => setHistoryOf(keyword)}
+                            aria-label={`History of ${keyword.keyword}`}
+                            title={readings > 1 ? `${readings} readings` : "History"}
+                            className={cn(
+                              "rounded-lg p-1.5 transition-colors hover:bg-white/[0.08] hover:text-white",
+                              readings > 1 ? "text-brand-300" : "text-cream-200/60",
+                            )}
+                          >
+                            <TrendUp className="size-4" />
+                          </button>
+                          <button
+                            type="button"
                             onClick={() => setEditing(keyword)}
                             aria-label={`Edit ${keyword.keyword}`}
                             className="rounded-lg p-1.5 text-cream-200/60 transition-colors hover:bg-white/[0.08] hover:text-white"
@@ -685,6 +747,8 @@ export function UpcomingWorkTab({
       </AnimatePresence>
 
       <KeywordFormModal open={editing !== null} onClose={() => setEditing(null)} workspace={workspace} keyword={editing} />
+
+      <HistoryModal keyword={historyOf} onClose={() => setHistoryOf(null)} />
 
       <NichePickerModal
         open={moveOpen}

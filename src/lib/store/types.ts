@@ -10,11 +10,32 @@ export type Settings = {
   visibleColumns: ColumnKey[];
 };
 
+export type InboxSource = "erank" | "extension";
+
+export type InboxRow = { keyword: string; volume: number; competition: number };
+
+/** Keywords the browser extension sent, waiting to be opened in Sort Keyword. */
+export type InboxBatch = {
+  id: string;
+  source: InboxSource;
+  /** What the batch is about — usually the eRank search, e.g. "christmas png". */
+  label: string;
+  createdAt: string;
+  rows: InboxRow[];
+};
+
+export type NewInboxBatch = { source: InboxSource; label: string; rows: InboxRow[] };
+
 export type StoreData = {
   niches: Niche[];
   keywords: Keyword[];
   settings: Settings;
+  inbox: InboxBatch[];
 };
+
+/** One set of duplicates to fold together: `keepId` survives, the rest go. */
+export type MergeGroup = { keepId: string; mergeIds: string[] };
+export type MergeResult = { merged: number; removed: number };
 
 export type NewNiche = { name: string; parentId: string | null };
 export type NichePatch = { name?: string; parentId?: string | null };
@@ -57,6 +78,8 @@ export type ImportResult = {
   subniches?: SubnicheOutcome[];
   /** Keywords that fit no subniche and went into the chosen niche itself. */
   stayed?: number;
+  /** Saved keywords whose numbers changed with this import; each got a new reading. */
+  updated?: number;
 };
 
 export type ImportOptions = {
@@ -104,6 +127,12 @@ export interface Store {
   autoGroupNiche(nicheId: string, options?: { minGroupSize?: number }): Promise<AutoGroupResult>;
   updateKeyword(id: string, patch: KeywordPatch): Promise<Keyword>;
   bulkKeywords(ids: string[], action: BulkAction): Promise<number>;
+  /** Folds each group of duplicate keywords into its kept copy. */
+  mergeKeywords(groups: MergeGroup[]): Promise<MergeResult>;
+
+  /** Keywords from the browser extension, held until they are opened in Sort Keyword. */
+  addInboxBatch(input: NewInboxBatch): Promise<InboxBatch>;
+  removeInboxBatch(id: string): Promise<void>;
 
   updateSettings(patch: Partial<Settings>): Promise<Settings>;
 }

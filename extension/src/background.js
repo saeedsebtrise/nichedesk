@@ -1,7 +1,10 @@
 import { CONFIG } from "./config.js";
+import { parseNumber } from "./lib/csv.js";
 import { readErankKeywords } from "./lib/erank.js";
+import { extractErankKeywords } from "./lib/erank-extract.js";
 import { createEtsyClient } from "./lib/etsy.js";
 import { checkLicense, describeLicense, getDeviceId, licenseGate } from "./lib/license.js";
+import { sendToInbox } from "./lib/nichedesk.js";
 import { runPipeline } from "./lib/pipeline.js";
 import { getSeedInfo, saveReport } from "./lib/reports.js";
 import { loadSettings } from "./lib/settings.js";
@@ -135,10 +138,64 @@ async function startRun({ from = 1, seed, productType, useOpenTab, csvRows }) {
   return { ok: true };
 }
 
-async function handle(message) {
+/**
+ * "Send to NicheDesk" on an eRank page: reads the keyword table the user is
+ * looking at and drops it into the NicheDesk inbox, ready to sort in the desk.
+ * Only rows eRank actually shows are read — blurred, paywalled rows are not.
+ */
+async function sendPageToInbox(tabId) {
+  if (tabId === undefined) return { ok: false, error: "Open an eRank Keyword Tool page first." };
+
+  const { settings, endpoints } = await loadSettings();
+  if (!settings.licenseKey) {
+    return { ok: false, error: "Add your license key in the NicheDesk extension (Settings → Connection) first." };
+  }
+
+  const [injection] = await chrome.scripting.executeScript({ target: { tabId }, func: extractErankKeywords });
+  const page = injection?.result;
+  if (!page || page.loggedOut) return { ok: false, error: "Log in to eRank first." };
+  if (page.rows.length === 0) {
+    return {
+      ok: false,
+      error:
+        page.hidden > 0
+          ? "eRank only shows blurred rows on this page — your eRank plan hides them."
+          : "No keyword table found. Search in eRank’s Keyword Tool first.",
+    };
+  }
+
+  try {
+    const result = await sendToInbox({
+      baseUrl: endpoints.licenseServerUrl,
+      key: settings.licenseKey,
+      deviceId: await getDeviceId(),
+      label: page.keywordParam ?? "",
+      rows: page.rows.map((row) => ({
+        keyword: row.keyword,
+        searches: parseNumber(row.searches),
+        competition: parseNumber(row.competition),
+      })),
+    });
+    await log(`Sent ${result.count} keywords to the NicheDesk inbox`);
+    return {
+      ok: true,
+      count: result.count,
+      label: result.label,
+      hidden: page.hidden,
+      appUrl: `${endpoints.licenseServerUrl.replace(/\/$/, "")}/app`,
+    };
+  } catch (error) {
+    return { ok: false, error: error.message };
+  }
+}
+
+async function handle(message, sender) {
   switch (message?.type) {
     case "run":
       return startRun(message);
+
+    case "erank:send-to-inbox":
+      return sendPageToInbox(sender?.tab?.id);
 
     case "stop":
       controller?.abort();
@@ -174,8 +231,8 @@ async function handle(message) {
   }
 }
 
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  handle(message).then(sendResponse, (error) => sendResponse({ ok: false, error: error.message }));
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  handle(message, sender).then(sendResponse, (error) => sendResponse({ ok: false, error: error.message }));
   return true; // keeps the channel open for the async answer
 });
 

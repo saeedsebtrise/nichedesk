@@ -11,8 +11,9 @@ import {
 } from "@/features/licenses/licenses";
 import { planSubniches } from "@/features/niches/auto-group";
 import { canReparent, withDescendantIds } from "@/features/niches/tree";
+import { MAX_SNAPSHOTS, recordSnapshot, snapshotsOf } from "@/features/keywords/history";
 import { TRENDS, TYPES } from "@/features/keywords/types";
-import type { ImportRow, Keyword } from "@/features/keywords/types";
+import type { ImportRow, Keyword, Snapshot } from "@/features/keywords/types";
 import type { Niche } from "@/features/niches/types";
 import {
   StoreValidationError,
@@ -21,9 +22,13 @@ import {
   type ColumnKey,
   type ImportOptions,
   type ImportResult,
+  type InboxBatch,
   type SubnicheOutcome,
   type KeywordPatch,
   type LicenseAction,
+  type MergeGroup,
+  type MergeResult,
+  type NewInboxBatch,
   type NewKeyword,
   type NewLicense,
   type NewNiche,
@@ -37,6 +42,9 @@ import {
 const DEFAULT_COLUMNS: ColumnKey[] = ["niche", "volume", "competition", "tick"];
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+/** Extension batches waiting in the inbox; older ones drop off. */
+export const MAX_INBOX_BATCHES = 20;
+
 export const emptyWorkspace = (): StoreData => ({
   niches: [],
   keywords: [],
@@ -44,7 +52,15 @@ export const emptyWorkspace = (): StoreData => ({
     competitionRules: { ...DEFAULT_COMPETITION_RULES },
     visibleColumns: [...DEFAULT_COLUMNS],
   },
+  inbox: [],
 });
+
+const isSnapshot = (value: unknown): value is Snapshot => {
+  const reading = value as Snapshot | null;
+  return (
+    typeof reading?.at === "string" && Number.isFinite(reading.volume) && Number.isFinite(reading.competition)
+  );
+};
 
 /** Normalises a stored workspace, dropping shapes that would crash the app. */
 export function coerceWorkspace(raw: unknown): StoreData {
@@ -62,18 +78,41 @@ export function coerceWorkspace(raw: unknown): StoreData {
       )
     : [];
 
+  const inbox = Array.isArray(data.inbox)
+    ? data.inbox
+        .filter((batch): batch is InboxBatch => typeof batch?.id === "string" && Array.isArray(batch?.rows))
+        .slice(0, MAX_INBOX_BATCHES)
+        .map((batch) => ({
+          id: batch.id,
+          source: batch.source === "extension" ? ("extension" as const) : ("erank" as const),
+          label: typeof batch.label === "string" ? batch.label : "",
+          createdAt: typeof batch.createdAt === "string" ? batch.createdAt : new Date(0).toISOString(),
+          rows: batch.rows
+            .filter((row) => typeof row?.keyword === "string")
+            .map((row) => ({
+              keyword: row.keyword,
+              volume: Number.isFinite(row.volume) ? row.volume : 0,
+              competition: Number.isFinite(row.competition) ? row.competition : 0,
+            })),
+        }))
+    : [];
+
   return {
     niches: niches.map((n) => ({ ...n, parentId: n.parentId ?? null })),
-    keywords: keywords.map((k) => ({
-      ...k,
-      volume: Number.isFinite(k.volume) ? k.volume : 0,
-      competition: Number.isFinite(k.competition) ? k.competition : 0,
-      nicheId: k.nicheId ?? null,
-      trend: TRENDS.includes(k.trend) ? k.trend : "Evergreen",
-      type: TYPES.includes(k.type) ? k.type : "White hat",
-      status: k.status === "done" ? "done" : "pending",
-      tick: Boolean(k.tick),
-    })),
+    keywords: keywords.map(({ history, ...k }) => {
+      const readings = Array.isArray(history) ? history.filter(isSnapshot).slice(-MAX_SNAPSHOTS) : [];
+      return {
+        ...k,
+        volume: Number.isFinite(k.volume) ? k.volume : 0,
+        competition: Number.isFinite(k.competition) ? k.competition : 0,
+        nicheId: k.nicheId ?? null,
+        trend: TRENDS.includes(k.trend) ? k.trend : "Evergreen",
+        type: TYPES.includes(k.type) ? k.type : "White hat",
+        status: k.status === "done" ? "done" : "pending",
+        tick: Boolean(k.tick),
+        ...(readings.length > 0 ? { history: readings } : {}),
+      };
+    }),
     settings: {
       competitionRules: normalizeRules({
         ...DEFAULT_COMPETITION_RULES,
@@ -83,6 +122,7 @@ export function coerceWorkspace(raw: unknown): StoreData {
         ? data.settings.visibleColumns
         : [...DEFAULT_COLUMNS],
     },
+    inbox,
   };
 }
 
@@ -201,17 +241,21 @@ export abstract class DocumentStore implements Store {
 
   createKeyword(input: NewKeyword): Promise<Keyword> {
     return this.updateWorkspace((data) => {
+      const createdAt = new Date().toISOString();
+      const volume = wholeNumber(input.volume);
+      const competition = wholeNumber(input.competition);
       const keyword: Keyword = {
         id: randomUUID(),
         keyword: trimmed(input.keyword, "Keyword"),
-        volume: wholeNumber(input.volume),
-        competition: wholeNumber(input.competition),
+        volume,
+        competition,
         nicheId: this.requireNiche(data, input.nicheId),
         trend: input.trend ?? "Evergreen",
         type: input.type ?? "White hat",
         status: "pending",
         tick: false,
-        createdAt: new Date().toISOString(),
+        createdAt,
+        history: [{ at: createdAt, volume, competition }],
       };
 
       data.keywords.push(keyword);
@@ -234,44 +278,77 @@ export abstract class DocumentStore implements Store {
   /**
    * Adds rows to one niche. Re-importing the same eRank export is routine, so
    * keywords the niche already holds are skipped rather than duplicated.
+   *
+   * A re-import still carries news, though: every saved copy of a search term,
+   * in whichever niche, takes the fresh numbers and gains a history reading,
+   * which is what lets the desk show a keyword rising or getting crowded.
    */
   private addRows(data: StoreData, nicheId: string | null, rows: ImportRow[]): ImportResult {
-    const existing = new Set(
+    const now = new Date().toISOString();
+    const inNiche = new Set(
       data.keywords
         .filter((keyword) => keyword.nicheId === nicheId)
         .map((keyword) => keyword.keyword.toLowerCase()),
     );
+    const saved = new Map<string, Keyword[]>();
+    for (const keyword of data.keywords) {
+      const key = keyword.keyword.toLowerCase();
+      saved.set(key, [...(saved.get(key) ?? []), keyword]);
+    }
 
     let added = 0;
     let skipped = 0;
+    let updated = 0;
+    const refreshed = new Set<string>();
 
     for (const row of rows) {
       const name = row.keyword.trim();
       if (name === "") continue;
 
       const key = name.toLowerCase();
-      if (existing.has(key)) {
+      const reading: Snapshot = {
+        at: now,
+        volume: wholeNumber(row.volume),
+        competition: wholeNumber(row.competition),
+      };
+
+      if (!refreshed.has(key)) {
+        refreshed.add(key);
+        for (const keyword of saved.get(key) ?? []) {
+          if (keyword.volume !== reading.volume || keyword.competition !== reading.competition) updated += 1;
+          keyword.history = recordSnapshot(snapshotsOf(keyword), reading);
+          keyword.volume = reading.volume;
+          keyword.competition = reading.competition;
+        }
+      }
+
+      if (inNiche.has(key)) {
         skipped += 1;
         continue;
       }
-      existing.add(key);
+      inNiche.add(key);
 
-      data.keywords.push({
+      // A copy in another niche already has a past; the new one shares it.
+      const sibling = saved.get(key)?.[0];
+      const keyword: Keyword = {
         id: randomUUID(),
         keyword: name,
-        volume: wholeNumber(row.volume),
-        competition: wholeNumber(row.competition),
+        volume: reading.volume,
+        competition: reading.competition,
         nicheId,
         trend: "Evergreen",
         type: "White hat",
         status: "pending",
         tick: false,
-        createdAt: new Date().toISOString(),
-      });
+        createdAt: now,
+        history: sibling ? [...snapshotsOf(sibling)] : [reading],
+      };
+      data.keywords.push(keyword);
+      saved.set(key, [...(saved.get(key) ?? []), keyword]);
       added += 1;
     }
 
-    return { added, skipped };
+    return updated > 0 ? { added, skipped, updated } : { added, skipped };
   }
 
   importKeywords(rows: ImportRow[], nicheId: string | null, options: ImportOptions = {}): Promise<ImportResult> {
@@ -289,6 +366,7 @@ export abstract class DocumentStore implements Store {
 
       let added = 0;
       let skipped = 0;
+      let updated = 0;
       const subniches: SubnicheOutcome[] = [];
 
       for (const group of plan.groups) {
@@ -296,15 +374,18 @@ export abstract class DocumentStore implements Store {
         const result = this.addRows(data, niche.id, group.members.map((index) => clean[index]));
         added += result.added;
         skipped += result.skipped;
+        updated += result.updated ?? 0;
         subniches.push({ name: niche.name, nicheId: niche.id, created, added: result.added });
       }
 
       const rest = this.addRows(data, target, plan.rest.map((index) => clean[index]));
+      updated += rest.updated ?? 0;
       return {
         added: added + rest.added,
         skipped: skipped + rest.skipped,
         subniches,
         stayed: rest.added,
+        ...(updated > 0 ? { updated } : {}),
       };
     });
   }
@@ -357,8 +438,14 @@ export abstract class DocumentStore implements Store {
       if (!keyword) throw new StoreValidationError("That keyword no longer exists.");
 
       if (patch.keyword !== undefined) keyword.keyword = trimmed(patch.keyword, "Keyword");
-      if (patch.volume !== undefined) keyword.volume = wholeNumber(patch.volume);
-      if (patch.competition !== undefined) keyword.competition = wholeNumber(patch.competition);
+      const volume = patch.volume !== undefined ? wholeNumber(patch.volume) : keyword.volume;
+      const competition = patch.competition !== undefined ? wholeNumber(patch.competition) : keyword.competition;
+      if (volume !== keyword.volume || competition !== keyword.competition) {
+        // A figure corrected by hand is a reading too, so the history keeps up.
+        keyword.history = recordSnapshot(snapshotsOf(keyword), { at: new Date().toISOString(), volume, competition });
+        keyword.volume = volume;
+        keyword.competition = competition;
+      }
       if (patch.nicheId !== undefined) keyword.nicheId = this.requireNiche(data, patch.nicheId);
       if (patch.trend !== undefined) keyword.trend = patch.trend;
       if (patch.type !== undefined) keyword.type = patch.type;
@@ -392,6 +479,70 @@ export abstract class DocumentStore implements Store {
       }
 
       return changed;
+    });
+  }
+
+  /**
+   * Folds duplicates into one kept copy per group. The kept copy inherits what
+   * the others knew — a tick, or work already done — and keeps its own niche
+   * and numbers; the others are removed.
+   */
+  mergeKeywords(groups: MergeGroup[]): Promise<MergeResult> {
+    return this.updateWorkspace((data) => {
+      const byId = new Map(data.keywords.map((keyword) => [keyword.id, keyword]));
+      const doomed = new Set<string>();
+      let merged = 0;
+
+      for (const group of groups) {
+        const keep = byId.get(group.keepId);
+        if (!keep) throw new StoreValidationError("A keyword to keep no longer exists.");
+        if (doomed.has(keep.id)) continue;
+
+        const others = group.mergeIds
+          .filter((id) => id !== keep.id && !doomed.has(id))
+          .map((id) => byId.get(id))
+          .filter((keyword): keyword is Keyword => keyword !== undefined);
+        if (others.length === 0) continue;
+
+        keep.tick = keep.tick || others.some((keyword) => keyword.tick);
+        if (others.some((keyword) => keyword.status === "done")) keep.status = "done";
+        for (const other of others) doomed.add(other.id);
+        merged += 1;
+      }
+
+      data.keywords = data.keywords.filter((keyword) => !doomed.has(keyword.id));
+      return { merged, removed: doomed.size };
+    });
+  }
+
+  addInboxBatch(input: NewInboxBatch): Promise<InboxBatch> {
+    return this.updateWorkspace((data) => {
+      const seen = new Set<string>();
+      const rows: InboxBatch["rows"] = [];
+      for (const row of input.rows) {
+        const keyword = row.keyword.trim();
+        const key = keyword.toLowerCase();
+        if (keyword === "" || seen.has(key)) continue;
+        seen.add(key);
+        rows.push({ keyword, volume: wholeNumber(row.volume), competition: wholeNumber(row.competition) });
+      }
+      if (rows.length === 0) throw new StoreValidationError("There are no keywords to send.");
+
+      const batch: InboxBatch = {
+        id: randomUUID(),
+        source: input.source,
+        label: input.label.trim() || "eRank keywords",
+        createdAt: new Date().toISOString(),
+        rows,
+      };
+      data.inbox = [batch, ...data.inbox].slice(0, MAX_INBOX_BATCHES);
+      return batch;
+    });
+  }
+
+  removeInboxBatch(id: string): Promise<void> {
+    return this.updateWorkspace((data) => {
+      data.inbox = data.inbox.filter((batch) => batch.id !== id);
     });
   }
 
