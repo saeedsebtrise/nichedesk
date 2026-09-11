@@ -4,7 +4,7 @@
  */
 export const CONFIG = Object.freeze({
   /** The NicheDesk server that checks license keys (POST /api/licenses/verify). */
-  licenseServerUrl: "http://localhost:3000",
+  licenseServerUrl: "https://nichedesk-rho.vercel.app",
 
   /** Shown as "Need a license key? Contact us" — e.g. "https://wa.me/923001234567". Empty hides it. */
   contactUrl: "",

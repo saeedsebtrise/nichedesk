@@ -1,14 +1,16 @@
 # Files `vercel deploy` must not upload. Vercel installs dependencies and
 # builds on its own servers, so only source and config are needed.
+# A leading "/" anchors a pattern to the project root: a bare "data" would
+# also drop src/app/api/data/, the workspace API.
 node_modules
-.next
-out
-dist
-data
+/.next
+/out
+/dist
+/data
 .env*
-.claude
-.git
+/.claude
+/.git
 *.tsbuildinfo
-next-env.d.ts
-.agents
-skills-lock.json
+/next-env.d.ts
+/.agents
+/skills-lock.json
