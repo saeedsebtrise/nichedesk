@@ -12,3 +12,10 @@ dist/
 
 # local tooling
 .claude/
+
+.vercel
+.env*
+
+# Neon agent-skill docs added by `vercel integration add`
+.agents/
+skills-lock.json

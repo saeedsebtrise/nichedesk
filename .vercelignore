@@ -1,0 +1,14 @@
+# Files `vercel deploy` must not upload. Vercel installs dependencies and
+# builds on its own servers, so only source and config are needed.
+node_modules
+.next
+out
+dist
+data
+.env*
+.claude
+.git
+*.tsbuildinfo
+next-env.d.ts
+.agents
+skills-lock.json
