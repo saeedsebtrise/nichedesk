@@ -7,8 +7,9 @@ import { cn } from "@/lib/utils";
 /**
  * Pop-up notifications in the top-right corner ("File uploaded successfully",
  * "1,096 keywords added to Pattern"). They dismiss themselves — errors stay a
- * little longer — and can be closed early. Announced to screen readers:
- * errors interrupt (role="alert"), everything else waits its turn.
+ * little longer, with a bar showing the time left — and can be closed early.
+ * Announced to screen readers: errors interrupt (role="alert"), everything
+ * else waits its turn.
  */
 
 type Tone = "success" | "error" | "info";
@@ -24,9 +25,9 @@ const DURATION_MS = { success: 5000, info: 5000, error: 8000 } as const;
 const MAX_VISIBLE = 4;
 
 const TONE = {
-  success: { bar: "border-l-emerald-500", icon: "bg-emerald-600 text-white", mark: "✓" },
-  error: { bar: "border-l-red-500", icon: "bg-red-600 text-white", mark: "!" },
-  info: { bar: "border-l-brand-500", icon: "bg-brand-500 text-white", mark: "i" },
+  success: { icon: "bg-emerald-500 text-white shadow-[0_0_24px_-4px_rgba(16,185,129,0.8)]", bar: "bg-emerald-400", mark: "✓" },
+  error: { icon: "bg-red-500 text-white shadow-[0_0_24px_-4px_rgba(239,68,68,0.8)]", bar: "bg-red-400", mark: "!" },
+  info: { icon: "bg-brand-500 text-white shadow-[0_0_24px_-4px_rgba(244,103,31,0.8)]", bar: "bg-brand-400", mark: "i" },
 } as const;
 
 export function ToastProvider({ children }: { children: ReactNode }) {
@@ -49,17 +50,14 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={show}>
       {children}
-      <div className="pointer-events-none fixed top-4 right-4 z-[60] flex w-[min(24rem,calc(100vw-2rem))] flex-col gap-2">
+      <div className="pointer-events-none fixed top-4 right-4 z-[80] flex w-[min(24rem,calc(100vw-2rem))] flex-col gap-2">
         {toasts.map((toast) => {
           const tone = TONE[toast.tone];
           return (
             <div
               key={toast.id}
               role={toast.tone === "error" ? "alert" : "status"}
-              className={cn(
-                "toast-in pointer-events-auto flex items-start gap-3 rounded-2xl border border-l-4 border-cream-200 bg-white p-3.5 shadow-[0_18px_40px_-16px_rgba(36,23,15,0.35)]",
-                tone.bar,
-              )}
+              className="toast-in pointer-events-auto relative flex items-start gap-3 overflow-hidden rounded-2xl border border-white/10 bg-night-900/95 p-3.5 pr-3 text-cream-100 shadow-[0_24px_60px_-20px_rgba(0,0,0,0.95)] backdrop-blur-xl"
             >
               <span
                 aria-hidden="true"
@@ -68,17 +66,24 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                 {tone.mark}
               </span>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-bold text-ink-900">{toast.title}</p>
-                {toast.detail ? <p className="mt-0.5 text-xs break-words text-ink-700">{toast.detail}</p> : null}
+                <p className="text-sm font-semibold text-white">{toast.title}</p>
+                {toast.detail ? (
+                  <p className="mt-0.5 text-xs break-words text-cream-200/60">{toast.detail}</p>
+                ) : null}
               </div>
               <button
                 type="button"
                 onClick={() => dismiss(toast.id)}
                 aria-label="Dismiss notification"
-                className="-mt-1 -mr-1 rounded-full px-2 py-0.5 text-lg leading-none text-ink-500 hover:bg-cream-100 hover:text-ink-900"
+                className="-mt-1 -mr-0.5 rounded-lg px-2 py-0.5 text-lg leading-none text-cream-200/45 hover:bg-white/10 hover:text-white"
               >
                 ×
               </button>
+              <span
+                aria-hidden="true"
+                className={cn("toast-timer absolute bottom-0 left-0 h-0.5 w-full opacity-70", tone.bar)}
+                style={{ animationDuration: `${DURATION_MS[toast.tone]}ms` }}
+              />
             </div>
           );
         })}

@@ -2,8 +2,11 @@
  * Captures the product screenshots used on the landing page.
  *
  *   node scripts/seed-demo.mjs
- *   NICHEDESK_DATA_FILE=data/demo.json npx next start -p 3100
+ *   node --env-file=data/demo.env node_modules/next/dist/bin/next start -p 3100
  *   node scripts/screenshots.mjs
+ *
+ * (data/demo.env holds NICHEDESK_DATA_FILE=data/demo.json; the "nichedesk-demo"
+ * launch config starts the same server.)
  *
  * Run against a production server: the dev server draws the Next.js
  * indicator in the corner, which would end up in every shot. The flows only
@@ -22,15 +25,16 @@ await mkdir(OUT, { recursive: true });
 
 const browser = await chromium.launch({ channel: "msedge", headless: true });
 const context = await browser.newContext({
-  // 16:10 to match a MacBook panel; 1.8x density gives a 2880x1800 image.
+  // 16:10 to match a laptop panel; 1.8x density gives a 2880x1800 image.
   viewport: { width: 1600, height: 1000 },
   deviceScaleFactor: 1.8,
-  colorScheme: "light",
   reducedMotion: "reduce",
 });
 const page = await context.newPage();
-const settle = () => page.waitForTimeout(450);
+const settle = () => page.waitForTimeout(650);
 const shot = (name) => join(OUT, name);
+/** A sidebar link; the drawer copy only exists on small screens. */
+const nav = (name) => page.getByRole("button", { name }).first();
 
 /** Crops to the top `height` CSS pixels of an element, in document coordinates. */
 async function cropTop(locator, name, height) {
@@ -45,9 +49,14 @@ async function cropTop(locator, name, height) {
   });
 }
 
-// 1. Upcoming Work — the hero shot.
+// 1. Overview — the dashboard.
 await page.goto(`${BASE}/app`, { waitUntil: "networkidle" });
-await page.getByRole("tab", { name: "Upcoming Work" }).click();
+await nav(/^Overview$/).click();
+await page.waitForTimeout(1500);
+await page.screenshot({ path: shot("overview.png") });
+
+// 2. Upcoming Work — the hero shot.
+await nav(/^Upcoming Work/).click();
 await settle();
 await page.screenshot({ path: shot("work.png") });
 
@@ -56,32 +65,36 @@ await page
   .first()
   .screenshot({ path: shot("stats.png") });
 
+await page.getByRole("button", { name: /Filters & colours/ }).click();
+await settle();
 await page
   .locator("div", { has: page.getByRole("heading", { name: "Competition color rules" }) })
   .last()
   .screenshot({ path: shot("color-rules.png") });
+await page.getByRole("button", { name: /Filters & colours/ }).click();
+await settle();
 
-await cropTop(page.locator("div.overflow-x-auto", { has: page.locator("table") }), "table.png", 470);
+await cropTop(page.locator('[data-shot="work-table"]'), "table.png", 470);
 
-// 2. Niche manager — the tree with rolled-up counts.
-await page.getByRole("button", { name: "+ New niche" }).click();
+// 3. Niche manager — the tree with rolled-up counts.
+await page.getByRole("button", { name: "Manage", exact: true }).first().click();
 await settle();
 await page.locator("dialog[open]").screenshot({ path: shot("niche-manager.png") });
 await page.keyboard.press("Escape");
 await settle();
 
-// 3. Sort Keyword — an eRank export loaded and filtered.
-await page.getByRole("tab", { name: "Sort Keyword" }).click();
+// 4. Sort Keyword — an eRank export loaded and filtered.
+await nav(/^Sort Keyword$/).click();
 await page.setInputFiles('input[type="file"]', CSV);
 await settle();
-await page.getByRole("button", { name: /\+ Including/ }).click();
+await page.getByRole("button", { name: "Including", exact: true }).click();
 await page.getByPlaceholder("png, svg").fill("png");
 await page.getByText("Select all matching").click();
 await settle();
 await page.screenshot({ path: shot("sort.png") });
 
-// 4. Add to a niche — choosing a subniche, with "Nest under" filled in.
-await page.getByRole("button", { name: "Add these keyword in your niche" }).click();
+// 5. Add to a niche — choosing a subniche, with "Nest under" filled in.
+await page.getByRole("button", { name: /to a niche$/ }).click();
 await settle();
 const dialog = page.locator("dialog[open]");
 await dialog.getByRole("button", { name: /christmas png/ }).first().click();

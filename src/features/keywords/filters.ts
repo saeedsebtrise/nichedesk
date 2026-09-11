@@ -1,5 +1,6 @@
 import type { Niche } from "../niches/types";
 import { withDescendantIds } from "../niches/tree";
+import { opportunityScore } from "./opportunity";
 import type { ImportRow, Keyword, KeywordType, Status, Trend } from "./types";
 
 /** Filters on the unsaved CSV preview. */
@@ -110,7 +111,7 @@ export function applyWorkFilters(keywords: Keyword[], filters: WorkFilters, nich
   });
 }
 
-export type SortKey = "keyword" | "volume" | "competition";
+export type SortKey = "keyword" | "volume" | "competition" | "score";
 export type SortDirection = "asc" | "desc";
 
 export function sortKeywords(keywords: Keyword[], key: SortKey, direction: SortDirection): Keyword[] {
@@ -118,6 +119,9 @@ export function sortKeywords(keywords: Keyword[], key: SortKey, direction: SortD
 
   return [...keywords].sort((a, b) => {
     if (key === "keyword") return a.keyword.localeCompare(b.keyword) * factor;
+    if (key === "score") {
+      return (opportunityScore(a.volume, a.competition) - opportunityScore(b.volume, b.competition)) * factor;
+    }
     return (a[key] - b[key]) * factor;
   });
 }

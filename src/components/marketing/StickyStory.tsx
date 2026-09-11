@@ -47,11 +47,13 @@ function Visual({ id }: { id: StoryStep["id"] }) {
       <BrowserFrame src={sort} alt="The Sort Keyword tab with an eRank CSV loaded into the import preview">
         {/* Sits over the real toast in the screenshot, as a zoomed-in callout of it. */}
         <Float className="top-11 right-1.5 w-64">
-          <div className="flex items-start gap-3 rounded-2xl border border-l-4 border-cream-200 border-l-emerald-500 bg-white p-3 shadow-2xl">
-            <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-emerald-600 text-sm font-black text-white">✓</span>
+          <div className="flex items-start gap-3 rounded-2xl border border-white/10 bg-night-900/95 p-3 shadow-[0_24px_60px_-20px_rgba(0,0,0,0.95)] ring-1 ring-emerald-400/25 backdrop-blur">
+            <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-emerald-500 text-sm font-black text-white shadow-[0_0_24px_-4px_rgba(16,185,129,0.8)]">
+              ✓
+            </span>
             <div>
-              <p className="text-sm font-bold text-ink-900">File uploaded successfully</p>
-              <p className="text-xs text-ink-700">eRank - Keyword Tool.csv · 1,759 keywords loaded</p>
+              <p className="text-sm font-semibold text-white">File uploaded successfully</p>
+              <p className="text-xs text-cream-200/60">eRank - Keyword Tool.csv · 1,759 keywords loaded</p>
             </div>
           </div>
         </Float>
@@ -77,7 +79,7 @@ function Visual({ id }: { id: StoryStep["id"] }) {
     return (
       // The dialog is tall; this width keeps it inside the pinned panel on a laptop screen.
       <div className="relative mx-auto max-w-[21rem]">
-        <div className="overflow-hidden rounded-2xl bg-white shadow-[0_40px_80px_-20px_rgba(0,0,0,0.75)] ring-1 ring-white/10">
+        <div className="overflow-hidden rounded-2xl bg-night-900 shadow-[0_40px_80px_-20px_rgba(0,0,0,0.75)] ring-1 ring-white/10">
           <Image
             src={addToNiche}
             alt="The Add to a niche dialog with the niche tree, a Nest under picker and the automatic subniche preview"
@@ -87,7 +89,7 @@ function Visual({ id }: { id: StoryStep["id"] }) {
           />
         </div>
         <Float className="-top-8 -right-4 w-60 sm:-right-14">
-          <div className="rounded-2xl border border-white/10 bg-night-900/95 p-4 text-left text-white shadow-2xl backdrop-blur">
+          <div className="rounded-2xl border border-white/10 bg-night-900/95 p-4 text-left text-white shadow-[0_0_50px_-12px_rgba(244,103,31,0.7)] ring-1 ring-brand-500/30 backdrop-blur">
             <p className="text-[10px] font-bold tracking-widest text-brand-300 uppercase">Auto subniches</p>
             <p className="mt-1 font-bold">Invitation</p>
             <ul className="mt-1 space-y-0.5 font-mono text-xs text-cream-200/80">
@@ -105,7 +107,7 @@ function Visual({ id }: { id: StoryStep["id"] }) {
   return (
     <BrowserFrame src={table} alt="The Upcoming Work table with competition badges coloured green to red, trend and type columns and ticks">
       <Float className="-bottom-8 left-[4%] w-[92%]">
-        <div className="overflow-hidden rounded-xl bg-white shadow-2xl ring-1 ring-white/10">
+        <div className="overflow-hidden rounded-xl bg-night-900 shadow-2xl ring-1 ring-white/10">
           <Image src={colorRules} alt="Competition colour rules" placeholder="blur" sizes="600px" className="h-auto w-full" />
         </div>
       </Float>

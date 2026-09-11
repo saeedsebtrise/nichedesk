@@ -110,6 +110,85 @@ const Refresh = (props: IconProps) => (
   </Svg>
 );
 
+export const Plus = (props: IconProps) => (
+  <Svg {...props}>
+    <path d="M12 5v14M5 12h14" />
+  </Svg>
+);
+
+export const Close = (props: IconProps) => (
+  <Svg {...props}>
+    <path d="M18 6 6 18M6 6l12 12" />
+  </Svg>
+);
+
+export const Menu = (props: IconProps) => (
+  <Svg {...props}>
+    <path d="M4 7h16M4 12h16M4 17h16" />
+  </Svg>
+);
+
+export const LayoutGrid = (props: IconProps) => (
+  <Svg {...props}>
+    <rect x="3.5" y="3.5" width="7" height="7" rx="1.5" />
+    <rect x="13.5" y="3.5" width="7" height="7" rx="1.5" />
+    <rect x="3.5" y="13.5" width="7" height="7" rx="1.5" />
+    <rect x="13.5" y="13.5" width="7" height="7" rx="1.5" />
+  </Svg>
+);
+
+export const Pencil = (props: IconProps) => (
+  <Svg {...props}>
+    <path d="M4 20h4L19 9a2.1 2.1 0 0 0-3-3L5 17v3Z" />
+    <path d="m14.5 7.5 3 3" />
+  </Svg>
+);
+
+export const Trash = (props: IconProps) => (
+  <Svg {...props}>
+    <path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13M10 11v5M14 11v5" />
+  </Svg>
+);
+
+export const ChevronRight = (props: IconProps) => (
+  <Svg {...props}>
+    <path d="m9 6 6 6-6 6" />
+  </Svg>
+);
+
+export const Sliders = (props: IconProps) => (
+  <Svg {...props}>
+    <path d="M4 7h9M17 7h3M4 17h3M11 17h9" />
+    <circle cx="15" cy="7" r="2" />
+    <circle cx="9" cy="17" r="2" />
+  </Svg>
+);
+
+export const Columns = (props: IconProps) => (
+  <Svg {...props}>
+    <rect x="3.5" y="4.5" width="17" height="15" rx="2" />
+    <path d="M9.5 4.5v15M14.5 4.5v15" />
+  </Svg>
+);
+
+export const Flame = (props: IconProps) => (
+  <Svg {...props}>
+    <path d="M12 3c.5 3 4.5 5 4.5 10a4.5 4.5 0 0 1-9 0c0-2.5 1.3-4 2.5-5 0 2 .8 3 2 3 0-3-1-5.5 0-8Z" />
+  </Svg>
+);
+
+export const ArrowUpRight = (props: IconProps) => (
+  <Svg {...props}>
+    <path d="M7 17 17 7M8 7h9v9" />
+  </Svg>
+);
+
+export const Circle = (props: IconProps) => (
+  <Svg {...props}>
+    <circle cx="12" cy="12" r="8.5" />
+  </Svg>
+);
+
 export type IconName =
   | "tree"
   | "upload"

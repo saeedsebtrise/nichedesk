@@ -64,12 +64,10 @@ function KeywordForm({
   };
 
   return (
-    <div className="space-y-3">
-      {workspace.error ?? localError ? (
-        <Banner tone="error">{localError ?? workspace.error}</Banner>
-      ) : null}
+    <div className="space-y-4">
+      {workspace.error ?? localError ? <Banner tone="error">{localError ?? workspace.error}</Banner> : null}
 
-      <label className="block space-y-1">
+      <label className="block space-y-1.5">
         <FieldLabel>Keyword</FieldLabel>
         <TextInput
           value={text}
@@ -80,16 +78,11 @@ function KeywordForm({
       </label>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className="block space-y-1">
+        <label className="block space-y-1.5">
           <FieldLabel>Volume</FieldLabel>
-          <TextInput
-            inputMode="numeric"
-            value={volume}
-            onChange={(event) => setVolume(event.target.value)}
-            placeholder="0"
-          />
+          <TextInput inputMode="numeric" value={volume} onChange={(event) => setVolume(event.target.value)} placeholder="0" />
         </label>
-        <label className="block space-y-1">
+        <label className="block space-y-1.5">
           <FieldLabel>Competition</FieldLabel>
           <TextInput
             inputMode="numeric"
@@ -100,26 +93,16 @@ function KeywordForm({
         </label>
       </div>
 
-      <div className="space-y-1">
+      <div className="space-y-1.5">
         <FieldLabel>Niche</FieldLabel>
-        <NicheTreeSelect
-          tree={workspace.tree}
-          value={nicheId}
-          onChange={setNicheId}
-          noneLabel="No niche"
-          className="w-full"
-        />
+        <NicheTreeSelect tree={workspace.tree} value={nicheId} onChange={setNicheId} noneLabel="No niche" className="w-full" />
       </div>
 
       {keyword ? (
         <div className="grid gap-3 sm:grid-cols-2">
-          <label className="block space-y-1">
+          <label className="block space-y-1.5">
             <FieldLabel>Trend</FieldLabel>
-            <Select
-              className="w-full"
-              value={trend}
-              onChange={(event) => setTrend(event.target.value as Trend)}
-            >
+            <Select className="w-full" value={trend} onChange={(event) => setTrend(event.target.value as Trend)}>
               {TRENDS.map((option) => (
                 <option key={option} value={option}>
                   {option}
@@ -127,13 +110,9 @@ function KeywordForm({
               ))}
             </Select>
           </label>
-          <label className="block space-y-1">
+          <label className="block space-y-1.5">
             <FieldLabel>Type</FieldLabel>
-            <Select
-              className="w-full"
-              value={type}
-              onChange={(event) => setType(event.target.value as KeywordType)}
-            >
+            <Select className="w-full" value={type} onChange={(event) => setType(event.target.value as KeywordType)}>
               {TYPES.map((option) => (
                 <option key={option} value={option}>
                   {option}
@@ -144,7 +123,7 @@ function KeywordForm({
         </div>
       ) : null}
 
-      <div className="flex justify-end gap-2 border-t border-cream-200 pt-3">
+      <div className="flex justify-end gap-2 border-t border-white/[0.08] pt-4">
         <Button variant="ghost" onClick={onClose}>
           Cancel
         </Button>
@@ -177,12 +156,7 @@ export function KeywordFormModal({
       description={keyword ? "Update this keyword's numbers or move it to another niche." : undefined}
     >
       {/* Switching rows while the dialog is open must reload the fields. */}
-      <KeywordForm
-        key={keyword?.id ?? "new"}
-        keyword={keyword}
-        workspace={workspace}
-        onClose={onClose}
-      />
+      <KeywordForm key={keyword?.id ?? "new"} keyword={keyword} workspace={workspace} onClose={onClose} />
     </Modal>
   );
 }

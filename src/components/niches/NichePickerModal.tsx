@@ -68,34 +68,25 @@ function NichePickerBody({
 
   return (
     <div className="space-y-4">
-      {workspace.error ?? localError ? (
-        <Banner tone="error">{localError ?? workspace.error}</Banner>
-      ) : null}
+      {workspace.error ?? localError ? <Banner tone="error">{localError ?? workspace.error}</Banner> : null}
 
       <div className="space-y-2">
         <FieldLabel>Search niches</FieldLabel>
         <TextInput
           value={search}
           onChange={(event) => setSearch(event.target.value)}
-          placeholder="Type to search..."
+          placeholder="Type to search…"
           aria-label="Search niches"
         />
-        <NicheTreeList
-          tree={tree}
-          niches={niches}
-          search={search}
-          selectedId={selectedId}
-          onSelect={setSelectedId}
-        />
+        <NicheTreeList tree={tree} niches={niches} search={search} selectedId={selectedId} onSelect={setSelectedId} />
         {selectedId ? (
-          <p className="text-xs text-ink-500">
-            Selected:{" "}
-            <span className="font-semibold text-ink-700">{nichePathLabel(niches, selectedId)}</span>
+          <p className="text-xs text-cream-200/50">
+            Selected: <span className="font-semibold text-cream-100">{nichePathLabel(niches, selectedId)}</span>
           </p>
         ) : null}
       </div>
 
-      <div className="space-y-2 rounded-xl border border-cream-200 bg-cream-50 p-3">
+      <div className="space-y-2.5 rounded-xl border border-white/[0.08] bg-white/[0.025] p-4">
         <FieldLabel>Create new niche</FieldLabel>
         <TextInput
           value={newName}
@@ -110,7 +101,7 @@ function NichePickerBody({
           }}
         />
         <div className="flex flex-wrap items-center gap-2">
-          <label htmlFor="new-niche-parent" className="text-xs font-semibold text-ink-700">
+          <label htmlFor="new-niche-parent" className="text-xs font-semibold text-cream-200/65">
             Nest under
           </label>
           <NicheTreeSelect
@@ -122,44 +113,44 @@ function NichePickerBody({
             className="min-w-44 flex-1"
           />
         </div>
-        <Button variant="primary" onClick={createAndUse} disabled={busy}>
+        <Button variant="outline" onClick={createAndUse} disabled={busy}>
           Create &amp; use this niche
         </Button>
       </div>
 
       {previewKeywords ? (
-        <div className="space-y-2 rounded-xl border border-brand-100 bg-brand-50/60 p-3">
-          <label className="flex items-center gap-2 text-sm font-semibold text-ink-900">
+        <div className="space-y-3 rounded-xl border border-brand-500/25 bg-brand-500/[0.07] p-4">
+          <label className="flex items-center gap-2 text-sm font-semibold text-white">
             <Checkbox checked={autoOn} onChange={(event) => setAutoOn(event.target.checked)} />
             Auto-create subniches
           </label>
           {autoOn ? (
             <>
-              <label className="flex items-center gap-2 text-xs text-ink-700">
+              <label className="flex items-center gap-2 text-xs text-cream-200/65">
                 Min keywords per subniche
                 <TextInput
                   type="number"
                   min={2}
                   value={String(minSize)}
                   onChange={(event) => setMinSize(Math.max(2, Number(event.target.value) || 2))}
-                  className="w-20 py-1 text-xs"
+                  className="max-w-20 py-1 text-xs"
                 />
               </label>
               {plan ? (
                 <SubnichePreview plan={plan} parentName={parentName} />
               ) : (
-                <p className="text-xs text-ink-500">Pick or create a niche to preview its subniches.</p>
+                <p className="text-xs text-cream-200/50">Pick or create a niche to preview its subniches.</p>
               )}
             </>
           ) : (
-            <p className="text-xs text-ink-500">All keywords go straight into the niche you choose.</p>
+            <p className="text-xs text-cream-200/50">All keywords go straight into the niche you choose.</p>
           )}
         </div>
       ) : null}
 
-      <div className="flex flex-wrap justify-end gap-2 border-t border-cream-200 pt-3">
+      <div className="flex flex-wrap justify-end gap-2 border-t border-white/[0.08] pt-4">
         {allowNone ? (
-          <Button variant="ghost" onClick={() => onConfirm(null, null)} disabled={busy}>
+          <Button variant="quiet" onClick={() => onConfirm(null, null)} disabled={busy}>
             Clear niche
           </Button>
         ) : null}

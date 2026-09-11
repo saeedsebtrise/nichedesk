@@ -37,7 +37,7 @@ function AutoSubnichePanel({
 
   if (own.length === 0) {
     return (
-      <p className="mt-2 rounded-xl bg-cream-50 p-3 text-xs text-ink-500">
+      <p className="mt-2 rounded-xl bg-white/[0.03] p-3 text-xs text-cream-200/55">
         “{niche.name}” has no keywords of its own to sort.
       </p>
     );
@@ -55,15 +55,15 @@ function AutoSubnichePanel({
   };
 
   return (
-    <div className="mt-2 space-y-2 rounded-xl border border-brand-100 bg-brand-50/60 p-3">
-      <label className="flex items-center gap-2 text-xs text-ink-700">
+    <div className="mt-2 space-y-3 rounded-xl border border-brand-500/25 bg-brand-500/[0.07] p-3.5">
+      <label className="flex items-center gap-2 text-xs text-cream-200/65">
         Min keywords per subniche
         <TextInput
           type="number"
           min={2}
           value={String(minSize)}
           onChange={(event) => setMinSize(Math.max(2, Number(event.target.value) || 2))}
-          className="w-20 py-1 text-xs"
+          className="max-w-20 py-1 text-xs"
         />
       </label>
       <SubnichePreview plan={plan} parentName={niche.name} />
@@ -87,13 +87,7 @@ function AutoSubnichePanel({
  * total including subniches. That difference is the whole point of nesting, and
  * it decides which delete mode a user wants.
  */
-function NicheManagerBody({
-  onClose,
-  workspace,
-}: {
-  onClose: () => void;
-  workspace: Workspace;
-}) {
+function NicheManagerBody({ onClose, workspace }: { onClose: () => void; workspace: Workspace }) {
   const { tree, niches, keywords, busy } = workspace;
 
   const [newName, setNewName] = useState("");
@@ -148,12 +142,10 @@ function NicheManagerBody({
 
   return (
     <div className="space-y-4">
-      {workspace.error ?? localError ? (
-        <Banner tone="error">{localError ?? workspace.error}</Banner>
-      ) : null}
+      {workspace.error ?? localError ? <Banner tone="error">{localError ?? workspace.error}</Banner> : null}
       {notice ? <Banner tone="info">{notice}</Banner> : null}
 
-      <div className="space-y-2 rounded-xl border border-cream-200 bg-cream-50 p-3">
+      <div className="space-y-2.5 rounded-xl border border-white/[0.08] bg-white/[0.025] p-4">
         <FieldLabel>Add a niche</FieldLabel>
         <div className="flex flex-wrap items-center gap-2">
           <TextInput
@@ -183,11 +175,11 @@ function NicheManagerBody({
       </div>
 
       {nodes.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-cream-300 px-3 py-8 text-center text-sm text-ink-500">
+        <p className="rounded-xl border border-dashed border-white/15 px-3 py-8 text-center text-sm text-cream-200/50">
           No niches yet. Add your first one above — then nest subniches under it.
         </p>
       ) : (
-        <ul className="max-h-80 divide-y divide-cream-100 overflow-y-auto rounded-xl border border-cream-200 bg-white">
+        <ul className="max-h-[26rem] divide-y divide-white/[0.06] overflow-y-auto rounded-xl border border-white/10 bg-white/[0.02]">
           {nodes.map((node) => {
             const own = counts.own.get(node.id) ?? 0;
             const total = counts.total.get(node.id) ?? 0;
@@ -197,12 +189,9 @@ function NicheManagerBody({
 
             return (
               <li key={node.id} className="px-3 py-2.5">
-                <div
-                  className="flex flex-wrap items-center gap-2"
-                  style={{ paddingLeft: node.depth * 18 }}
-                >
+                <div className="flex flex-wrap items-center gap-2" style={{ paddingLeft: node.depth * 18 }}>
                   {node.depth > 0 ? (
-                    <span aria-hidden="true" className="text-ink-500">
+                    <span aria-hidden="true" className="text-cream-200/30">
                       └
                     </span>
                   ) : null}
@@ -235,12 +224,12 @@ function NicheManagerBody({
                       <span
                         className={cn(
                           "truncate text-sm font-semibold",
-                          node.depth === 0 ? "text-ink-900" : "text-ink-700",
+                          node.depth === 0 ? "text-white" : "text-cream-100/85",
                         )}
                       >
                         {node.name}
                       </span>
-                      <span className="tabular text-[11px] text-ink-500">
+                      <span className="tabular text-[11px] text-cream-200/45">
                         {formatNumber(own)} keyword{own === 1 ? "" : "s"}
                         {rolledUp > 0 ? ` · +${formatNumber(rolledUp)} in subniches` : ""}
                       </span>
@@ -254,10 +243,7 @@ function NicheManagerBody({
                           tree={tree}
                           value={node.parentId ?? "none"}
                           onChange={(value) =>
-                            workspace.moveNiche(
-                              node.id,
-                              value === "none" || value === "all" ? null : value,
-                            )
+                            workspace.moveNiche(node.id, value === "none" || value === "all" ? null : value)
                           }
                           noneLabel="Top level"
                           // A niche cannot be nested inside itself or its own subtree.
@@ -271,7 +257,7 @@ function NicheManagerBody({
                           className="max-w-40 py-1 text-xs"
                         />
                         <Button
-                          variant={autoId === node.id ? "chipActive" : "ghost"}
+                          variant={autoId === node.id ? "chipActive" : "chip"}
                           className="px-2.5 py-1 text-xs"
                           disabled={own < 2}
                           title={own < 2 ? "Needs keywords of its own to sort" : "Sort this niche's keywords into subniches"}
@@ -283,7 +269,7 @@ function NicheManagerBody({
                           Auto subniches
                         </Button>
                         <Button
-                          variant="ghost"
+                          variant="chip"
                           className="px-2.5 py-1 text-xs"
                           onClick={() => {
                             setEditingId(node.id);
@@ -293,8 +279,8 @@ function NicheManagerBody({
                           Rename
                         </Button>
                         <Button
-                          variant="ghost"
-                          className="px-2.5 py-1 text-xs text-red-700"
+                          variant="chip"
+                          className="px-2.5 py-1 text-xs text-red-300 hover:text-red-200"
                           onClick={() => setConfirmDeleteId(confirming ? null : node.id)}
                         >
                           Delete
@@ -305,12 +291,10 @@ function NicheManagerBody({
                 </div>
 
                 {confirming ? (
-                  <div className="mt-2 space-y-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-900">
+                  <div className="mt-2 space-y-2.5 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-100">
                     <p>
                       Delete <span className="font-semibold">{node.name}</span>?
-                      {node.children.length > 0 || total > 0
-                        ? " Choose what happens to what is inside."
-                        : ""}
+                      {node.children.length > 0 || total > 0 ? " Choose what happens to what is inside." : ""}
                     </p>
                     <div className="flex flex-wrap gap-2">
                       <Button
@@ -335,11 +319,7 @@ function NicheManagerBody({
                       >
                         Delete subniches &amp; {formatNumber(total)} keyword{total === 1 ? "" : "s"}
                       </Button>
-                      <Button
-                        variant="ghost"
-                        className="text-xs"
-                        onClick={() => setConfirmDeleteId(null)}
-                      >
+                      <Button variant="quiet" className="text-xs" onClick={() => setConfirmDeleteId(null)}>
                         Cancel
                       </Button>
                     </div>
@@ -362,7 +342,7 @@ function NicheManagerBody({
         </ul>
       )}
 
-      <div className="flex justify-end border-t border-cream-200 pt-3">
+      <div className="flex justify-end border-t border-white/[0.08] pt-4">
         <Button variant="primary" onClick={onClose}>
           Done
         </Button>
@@ -387,7 +367,7 @@ export function NicheManagerModal({
       onClose={onClose}
       title="Niches"
       description="Build your niche tree — nest a subniche under any parent, or re-nest one later."
-      width="max-w-2xl"
+      width="max-w-3xl"
     >
       <NicheManagerBody onClose={onClose} workspace={workspace} />
     </Modal>

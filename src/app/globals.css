@@ -251,6 +251,41 @@ html:has(.mk) body {
   color: var(--color-cream-100);
 }
 
+/* The tool at /app: dark like the site, and a touch larger on wide screens. */
+html:has(.ndapp) {
+  background: var(--color-night-950);
+  color-scheme: dark;
+  font-size: clamp(16px, 0.2vw + 13px, 18px);
+}
+
+html:has(.ndapp) body {
+  background: var(--color-night-950);
+  color: var(--color-cream-100);
+}
+
+.ndapp option {
+  background-color: #1c140e;
+  color: #fff4ea;
+}
+
+/* Time-left bar along the bottom of a notification. */
+.toast-timer {
+  transform-origin: left;
+  animation: toast-timer linear forwards;
+}
+
+@keyframes toast-timer {
+  to {
+    transform: scaleX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast-timer {
+    animation: none;
+  }
+}
+
 /* Section divider: a hairline that fades out at both ends. */
 .hairline {
   background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.12), transparent);
