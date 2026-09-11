@@ -4,7 +4,9 @@
  * NEXT_PUBLIC_SITE_URL must be set in production so canonical URLs, the sitemap
  * and Open Graph images resolve to absolute URLs.
  */
+// NICHEDESK_SITE_URL is set in next.config.ts and inlined into client bundles.
 const rawSiteUrl =
+  process.env.NICHEDESK_SITE_URL ??
   process.env.NEXT_PUBLIC_SITE_URL ??
   (process.env.VERCEL_PROJECT_PRODUCTION_URL
     ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`

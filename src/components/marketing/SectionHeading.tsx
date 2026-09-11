@@ -1,44 +1,50 @@
 import { cn } from "@/lib/utils";
 
+/** Eyebrow pill, gradient headline and lede — the opening of every section. */
 export function SectionHeading({
   id,
   eyebrow,
   title,
   body,
-  tone = "light",
   align = "center",
+  size = "lg",
 }: {
   id: string;
   eyebrow: string;
   title: string;
   body?: string;
-  tone?: "light" | "dark";
   align?: "center" | "left";
+  /** `md` for headings that sit in a narrow side column. */
+  size?: "lg" | "md";
 }) {
-  const dark = tone === "dark";
+  const center = align === "center";
 
   return (
-    <div className={cn("max-w-2xl", align === "center" && "mx-auto text-center")}>
-      <p
-        className={cn(
-          "inline-flex items-center gap-2 text-xs font-bold tracking-[0.18em] uppercase",
-          dark ? "text-brand-300" : "text-brand-600",
-        )}
-      >
-        <span aria-hidden="true" className="h-px w-6 bg-current opacity-60" />
+    <div className={cn("max-w-3xl", center && "mx-auto text-center")}>
+      <p className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3.5 py-1.5 text-xs font-semibold tracking-[0.14em] text-brand-200 uppercase backdrop-blur">
+        <span
+          aria-hidden="true"
+          className="size-1.5 rounded-full bg-brand-400 shadow-[0_0_12px_3px_rgba(251,138,75,0.6)]"
+        />
         {eyebrow}
       </p>
       <h2
         id={id}
         className={cn(
-          "font-display mt-3 text-4xl leading-[1.05] font-extrabold tracking-[-0.03em] sm:text-5xl",
-          dark ? "text-white" : "text-ink-900",
+          "font-display mt-6 bg-gradient-to-b from-white from-40% to-white/55 bg-clip-text pb-1 font-extrabold tracking-[-0.035em] text-balance text-transparent",
+          size === "lg" ? "text-[clamp(2.25rem,4.6vw,4.25rem)] leading-[1.02]" : "text-[clamp(2rem,3vw,2.9rem)] leading-[1.05]",
         )}
       >
         {title}
       </h2>
       {body ? (
-        <p className={cn("mt-4 text-lg leading-relaxed", dark ? "text-cream-200/80" : "text-ink-700")}>
+        <p
+          className={cn(
+            "mt-5 text-lg leading-relaxed text-pretty text-cream-200/60",
+            size === "lg" && "sm:text-xl",
+            center && "mx-auto max-w-2xl",
+          )}
+        >
           {body}
         </p>
       ) : null}

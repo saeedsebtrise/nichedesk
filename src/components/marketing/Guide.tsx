@@ -1,4 +1,6 @@
 import { GUIDE } from "@/components/marketing/content";
+import { GuideToc } from "@/components/marketing/GuideToc";
+import { Reveal } from "@/components/marketing/motion";
 import { SectionHeading } from "@/components/marketing/SectionHeading";
 
 /**
@@ -7,44 +9,45 @@ import { SectionHeading } from "@/components/marketing/SectionHeading";
  * the page, which is what search engines rank on.
  */
 export function Guide() {
+  const toc = GUIDE.map((section, index) => ({ id: `guide-${index + 1}`, label: section.heading }));
+
   return (
-    <section id="guide" aria-labelledby="guide-title" className="scroll-mt-20">
-      <div className="mx-auto grid max-w-6xl gap-12 px-4 py-24 sm:py-32 lg:grid-cols-[18rem_1fr] lg:gap-20">
-        <div className="lg:sticky lg:top-28 lg:self-start">
+    <section id="guide" aria-labelledby="guide-title" className="relative scroll-mt-24 py-28 sm:py-36">
+      <div className="mx-auto grid max-w-7xl gap-14 px-5 sm:px-8 lg:grid-cols-[22rem_1fr] lg:gap-20">
+        <div className="lg:sticky lg:top-32 lg:self-start">
           <SectionHeading
             id="guide-title"
             align="left"
+            size="md"
             eyebrow="Guide"
             title="Etsy keyword research that does not end in a spreadsheet"
           />
-          <nav aria-label="In this guide" className="mt-8 hidden lg:block">
-            <ol className="space-y-2 border-l border-ink-900/10 text-sm">
-              {GUIDE.map((section, index) => (
-                <li key={section.heading}>
-                  <a
-                    href={`#guide-${index + 1}`}
-                    className="-ml-px block border-l border-transparent py-1 pl-4 text-ink-500 transition-colors hover:border-brand-500 hover:text-ink-900"
-                  >
-                    {section.heading}
-                  </a>
-                </li>
-              ))}
-            </ol>
-          </nav>
+          <GuideToc items={toc} />
         </div>
 
-        <div className="space-y-14">
+        <div className="space-y-5">
           {GUIDE.map((section, index) => (
-            <div key={section.heading} id={`guide-${index + 1}`} className="scroll-mt-28">
-              <h3 className="font-display text-2xl font-bold tracking-tight text-ink-900 sm:text-3xl">
-                {section.heading}
-              </h3>
-              <div className="mt-4 space-y-4 text-[17px] leading-[1.75] text-ink-700">
-                {section.paragraphs.map((paragraph) => (
-                  <p key={paragraph.slice(0, 40)}>{paragraph}</p>
-                ))}
-              </div>
-            </div>
+            <Reveal key={section.heading}>
+              <article
+                id={`guide-${index + 1}`}
+                className="scroll-mt-32 rounded-3xl border border-white/[0.07] bg-gradient-to-b from-white/[0.035] to-white/[0.01] p-7 sm:p-10"
+              >
+                <p
+                  aria-hidden="true"
+                  className="font-display bg-gradient-to-b from-brand-300 to-brand-600 bg-clip-text text-5xl leading-none font-extrabold text-transparent"
+                >
+                  {String(index + 1).padStart(2, "0")}
+                </p>
+                <h3 className="font-display mt-5 text-2xl font-bold tracking-tight text-white sm:text-3xl">
+                  {section.heading}
+                </h3>
+                <div className="mt-5 space-y-4 text-[1.05rem] leading-[1.8] text-cream-200/65">
+                  {section.paragraphs.map((paragraph) => (
+                    <p key={paragraph.slice(0, 40)}>{paragraph}</p>
+                  ))}
+                </div>
+              </article>
+            </Reveal>
           ))}
         </div>
       </div>

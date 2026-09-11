@@ -1,32 +1,37 @@
+import type { ReactNode } from "react";
+
 import { CountUp, Reveal } from "@/components/marketing/motion";
 
 /**
  * Capability figures, not vanity metrics: every number is a property of the
  * tool itself, so none of it can go stale or be untrue.
  */
+const FACTS: { label: string; value: ReactNode }[] = [
+  { label: "levels of niche nesting", value: "∞" },
+  { label: "filters before you save", value: <CountUp value={4} /> },
+  { label: "keywords per import", value: <CountUp value={20000} /> },
+  { label: "accounts to create", value: "0" },
+];
+
 export function ProofStrip() {
   return (
-    <section aria-label="NicheDesk at a glance" className="bg-night-950 pb-20 text-white">
-      <dl className="mx-auto grid max-w-6xl grid-cols-2 gap-3 px-4 pt-14 md:grid-cols-4">
-        {[
-          { label: "levels of niche nesting", value: <span>∞</span> },
-          { label: "filters before you save", value: <CountUp value={4} /> },
-          { label: "keywords per import", value: <CountUp value={20000} /> },
-          { label: "accounts to create", value: <span>0</span> },
-        ].map((fact, index) => (
-          <Reveal key={fact.label} delay={index * 0.08}>
-            <div className="rounded-2xl bg-white/[0.035] p-6 text-center ring-1 ring-white/10">
-              <dt className="sr-only">{fact.label}</dt>
-              <dd>
-                <span className="font-display block bg-gradient-to-b from-white to-cream-300 bg-clip-text text-4xl font-extrabold tracking-tight text-transparent sm:text-5xl">
+    <section aria-label="NicheDesk at a glance" className="pb-28 sm:pb-36">
+      <div className="mx-auto max-w-7xl px-5 sm:px-8">
+        <Reveal>
+          {/* 1px gaps over a lighter fill draw the dividers between the cells. */}
+          <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-3xl border border-white/10 bg-white/[0.08] lg:grid-cols-4">
+            {FACTS.map((fact) => (
+              <div key={fact.label} className="flex flex-col-reverse bg-night-950 p-5 sm:p-10">
+                <dt className="mt-3 text-sm font-medium text-cream-200/50">{fact.label}</dt>
+                {/* Scales with the screen so "20,000" fits a half-width cell on a phone. */}
+                <dd className="font-display bg-gradient-to-b from-white to-white/45 bg-clip-text text-[clamp(2rem,8vw,3.75rem)] leading-none font-extrabold tracking-tight text-transparent tabular-nums">
                   {fact.value}
-                </span>
-                <span className="mt-2 block text-sm font-medium text-cream-200/60">{fact.label}</span>
-              </dd>
-            </div>
-          </Reveal>
-        ))}
-      </dl>
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </Reveal>
+      </div>
     </section>
   );
 }

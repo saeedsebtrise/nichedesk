@@ -48,7 +48,7 @@ function Chip({ keyword, competition }: { keyword: string; competition: number }
 
 export function KeywordMarquee() {
   return (
-    <div aria-hidden="true" className="relative overflow-hidden border-y border-white/10 bg-night-950 py-6">
+    <div aria-hidden="true" className="relative overflow-hidden border-y border-white/[0.06] bg-white/[0.012] py-7">
       <div className="marquee-track space-y-3 [mask-image:linear-gradient(90deg,transparent,black_12%,black_88%,transparent)]">
         {ROWS.map((row, index) => (
           <div key={index} className={cn("marquee flex w-max gap-3", index % 2 === 1 && "marquee-reverse")}>

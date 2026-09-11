@@ -63,12 +63,14 @@ export const STORY: StoryStep[] = [
   },
 ];
 
+/** The animated illustration a feature card shows (BentoVisuals.tsx). */
+export type FeatureVisual = "thresholds" | "bulk" | "reimport" | "progress" | "search" | "export" | "privacy";
+
 export type Feature = {
   icon: IconName;
   title: string;
   body: string;
-  /** Wide cards carry a product crop and span two columns. */
-  image?: "colorRules" | "stats";
+  visual: FeatureVisual;
 };
 
 export const FEATURES: Feature[] = [
@@ -76,38 +78,43 @@ export const FEATURES: Feature[] = [
     icon: "gauge",
     title: "Your competition thresholds",
     body: "Green, light green, orange and red — at the cut-offs you choose. Type them in any order; NicheDesk sorts them so no colour band ever goes missing.",
-    image: "colorRules",
+    visual: "thresholds",
   },
   {
     icon: "layers",
     title: "Bulk actions for 1,000+ rows",
     body: "Select all matching, then mark done, move to a niche or delete in one go.",
+    visual: "bulk",
   },
   {
     icon: "refresh",
     title: "Safe to re-import",
     body: "Saving skips keywords a niche already holds, so an updated export only adds what is new.",
+    visual: "reimport",
   },
   {
     icon: "list",
     title: "Progress at a glance",
     body: "Total, pending, done, and the low-competition keywords still open — updated the moment you mark a row.",
-    image: "stats",
+    visual: "progress",
   },
   {
     icon: "search",
     title: "Search and filter everything",
     body: "Keyword search plus niche, status, trend and type filters, a volume floor and a competition ceiling.",
+    visual: "search",
   },
   {
     icon: "download",
     title: "Export whenever you like",
     body: "Your current view as CSV, with the full niche path on every row — ready for Excel, Sheets or Numbers.",
+    visual: "export",
   },
   {
     icon: "lock",
     title: "No account, no tracking",
     body: "Open it and start working. There is no signup, and no analytics watching what you research.",
+    visual: "privacy",
   },
 ];
 
@@ -213,7 +220,7 @@ export const FAQS: Faq[] = [
   {
     question: "Where is my keyword data stored?",
     answer:
-      "In a data file alongside the app rather than a third-party service, so nothing is sent anywhere else. You can delete the file at any time to start clean.",
+      "In NicheDesk’s own database rather than a third-party service, and it is never sent to Etsy, eRank or an analytics provider. There are no accounts, so everyone who opens this NicheDesk shares one workspace — export to CSV whenever you want a private copy.",
   },
   {
     question: "Can I get my keywords back out?",

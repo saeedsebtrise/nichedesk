@@ -229,3 +229,192 @@ select {
     transform: translateY(-10px);
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* Marketing pages — dark, and scaled to the screen                    */
+/* ------------------------------------------------------------------ */
+
+/*
+ * The landing page is dark edge to edge and grows with the monitor: 16px on
+ * phones and laptops, up to 19px on wide screens. Everything is sized in rem,
+ * so a 2560px display gets a proportionally larger page instead of a thin
+ * strip of content in the middle. Scoped with :has() so the tool is untouched.
+ */
+html:has(.mk) {
+  background: var(--color-night-950);
+  color-scheme: dark;
+  font-size: clamp(16px, 0.25vw + 12.5px, 19px);
+}
+
+html:has(.mk) body {
+  background: var(--color-night-950);
+  color: var(--color-cream-100);
+}
+
+/* Section divider: a hairline that fades out at both ends. */
+.hairline {
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.12), transparent);
+}
+
+/* Orange-to-peach headline fill with a slow sheen moving through it. */
+.text-shimmer {
+  background: linear-gradient(100deg, #f4671f 0%, #ff9a3d 30%, #ffd9bd 50%, #ff9a3d 70%, #f4671f 100%);
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer 7s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0%,
+  100% {
+    background-position: 100% 0;
+  }
+  50% {
+    background-position: 0% 0;
+  }
+}
+
+/* A spark of light running round an element's edge. */
+@property --beam-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+.beam-border {
+  position: relative;
+}
+
+.beam-border::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  padding: 1px;
+  border-radius: inherit;
+  background: conic-gradient(
+    from var(--beam-angle),
+    transparent 0deg,
+    transparent 250deg,
+    rgb(244 103 31 / 0.9) 305deg,
+    #ffd2b0 335deg,
+    transparent 360deg
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  animation: beam-spin 6s linear infinite;
+}
+
+@keyframes beam-spin {
+  to {
+    --beam-angle: 360deg;
+  }
+}
+
+/* Light travelling along the pipeline connectors (paths use pathLength=200). */
+.beam-path {
+  stroke-dasharray: 26 174;
+  animation: beam-travel 2.6s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+@keyframes beam-travel {
+  from {
+    stroke-dashoffset: 200;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* The same, running down a vertical connector on small screens. */
+.beam-drop {
+  animation: beam-drop 1.8s ease-in infinite;
+}
+
+@keyframes beam-drop {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(400%);
+  }
+}
+
+/* Rings rippling out from a glowing tile. */
+.pulse-ring {
+  animation: pulse-ring 2.8s cubic-bezier(0.2, 0.6, 0.3, 1) infinite;
+}
+
+@keyframes pulse-ring {
+  from {
+    transform: scale(0.9);
+    opacity: 0.8;
+  }
+  to {
+    transform: scale(1.7);
+    opacity: 0;
+  }
+}
+
+/* Perspective floor grid behind the final call to action. */
+.retro-grid-lines {
+  background-image:
+    linear-gradient(to right, rgb(244 103 31 / 0.4) 1px, transparent 0),
+    linear-gradient(to bottom, rgb(244 103 31 / 0.4) 1px, transparent 0);
+  background-size: 60px 60px;
+  animation: grid-scroll 20s linear infinite;
+}
+
+@keyframes grid-scroll {
+  from {
+    transform: translateY(-50%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+/* Text caret in the search illustration. */
+.caret {
+  animation: caret 1s steps(1) infinite;
+}
+
+@keyframes caret {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* FAQ answers ease in as a question opens. */
+@media (prefers-reduced-motion: no-preference) {
+  .faq-item[open] .faq-answer {
+    animation: faq-open 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+}
+
+@keyframes faq-open {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .text-shimmer,
+  .beam-border::before,
+  .beam-path,
+  .beam-drop,
+  .pulse-ring,
+  .retro-grid-lines,
+  .caret {
+    animation: none !important;
+  }
+}
