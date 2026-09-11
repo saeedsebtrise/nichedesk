@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { Wordmark } from "@/components/shared/Wordmark";
+import { ToastProvider } from "@/components/ui/toast";
 import { SortKeywordTab } from "@/components/sort/SortKeywordTab";
 import { UpcomingWorkTab } from "@/components/work/UpcomingWorkTab";
 import { useWorkspace } from "@/features/workspace/useWorkspace";
@@ -23,6 +24,7 @@ export function AppShell({ initialData, locked = false }: { initialData: StoreDa
   const [tab, setTab] = useState<TabId>("sort");
 
   return (
+    <ToastProvider>
     <div className="min-h-screen">
       <header className="border-b-2 border-brand-500/70 bg-white/70 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3">
@@ -86,5 +88,6 @@ export function AppShell({ initialData, locked = false }: { initialData: StoreDa
         )}
       </main>
     </div>
+    </ToastProvider>
   );
 }

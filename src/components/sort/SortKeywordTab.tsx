@@ -4,6 +4,7 @@ import { useMemo, useRef, useState } from "react";
 
 import { NichePickerModal, type AutoSubniches } from "@/components/niches/NichePickerModal";
 import { Banner, Button, Checkbox, TextInput } from "@/components/ui/primitives";
+import { useToast } from "@/components/ui/toast";
 import { parseErankCsv } from "@/features/keywords/csv";
 import {
   EMPTY_IMPORT_FILTERS,
@@ -56,7 +57,7 @@ export function SortKeywordTab({ workspace }: { workspace: Workspace }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
+  const toast = useToast();
 
   const filtered = useMemo(() => applyImportFilters(rows, filters), [rows, filters]);
   const visibleRows = filtered.slice(0, visibleCount);
@@ -73,7 +74,14 @@ export function SortKeywordTab({ workspace }: { workspace: Workspace }) {
   const previewKeywords = useMemo(() => targetRows.map((row) => row.keyword), [targetRows]);
 
   const loadFile = async (file: File) => {
-    const { rows: parsed, warnings: parseWarnings } = parseErankCsv(await file.text());
+    let text: string;
+    try {
+      text = await file.text();
+    } catch {
+      toast({ tone: "error", title: "Could not read that file", detail: file.name });
+      return;
+    }
+    const { rows: parsed, warnings: parseWarnings } = parseErankCsv(text);
 
     setRows(parsed);
     setFileName(file.name);
@@ -82,7 +90,20 @@ export function SortKeywordTab({ workspace }: { workspace: Workspace }) {
     setOpenFilters([]);
     setSelected(new Set());
     setVisibleCount(PAGE_SIZE);
-    setNotice(null);
+
+    if (parsed.length === 0) {
+      toast({
+        tone: "error",
+        title: "No keywords found",
+        detail: parseWarnings[0] ?? `${file.name} has no keyword rows.`,
+      });
+      return;
+    }
+    toast({
+      tone: "success",
+      title: "File uploaded successfully",
+      detail: `${file.name} · ${formatNumber(parsed.length)} keyword${parsed.length === 1 ? "" : "s"} loaded`,
+    });
   };
 
   const toggleFilter = (key: FilterKey) => {
@@ -138,15 +159,19 @@ export function SortKeywordTab({ workspace }: { workspace: Workspace }) {
     const where = nicheId ? workspace.labelFor(nicheId) : "no niche";
     const subniches = result.subniches ?? [];
     const created = subniches.filter((subniche) => subniche.created).length;
-    setNotice(
-      `Added ${formatNumber(result.added)} keyword${result.added === 1 ? "" : "s"} to ${where}` +
-        (subniches.length > 0
-          ? ` · sorted into ${subniches.length} subniche${subniches.length === 1 ? "" : "s"}` +
-            (created < subniches.length ? ` (${created} new)` : "") +
-            `, ${formatNumber(result.stayed ?? 0)} stayed in ${where}`
-          : "") +
-        (result.skipped > 0 ? ` · skipped ${formatNumber(result.skipped)} already there` : ""),
-    );
+    const details = [
+      subniches.length > 0
+        ? `Sorted into ${subniches.length} subniche${subniches.length === 1 ? "" : "s"}` +
+          (created < subniches.length ? ` (${created} new)` : "") +
+          `; ${formatNumber(result.stayed ?? 0)} stayed in ${where}`
+        : null,
+      result.skipped > 0 ? `${formatNumber(result.skipped)} skipped — already there` : null,
+    ].filter(Boolean);
+    toast({
+      tone: "success",
+      title: `${formatNumber(result.added)} keyword${result.added === 1 ? "" : "s"} added to “${where}”`,
+      detail: details.join(" · ") || undefined,
+    });
 
     // Saved rows leave the preview so a second click cannot re-add them.
     dropRows(payload.map((row) => row.id));
@@ -158,7 +183,6 @@ export function SortKeywordTab({ workspace }: { workspace: Workspace }) {
     setWarnings([]);
     setSelected(new Set());
     clearAll();
-    setNotice(null);
     if (fileInput.current) fileInput.current.value = "";
   };
 
@@ -188,7 +212,6 @@ export function SortKeywordTab({ workspace }: { workspace: Workspace }) {
         ) : null}
       </div>
 
-      {notice ? <Banner tone="info">{notice}</Banner> : null}
       {workspace.error ? <Banner tone="error">{workspace.error}</Banner> : null}
       {warnings.map((warning) => (
         <Banner key={warning} tone="info">
