@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Niche report — NicheDesk Research</title>
+    <link rel="stylesheet" href="report.css" />
+  </head>
+  <body>
+    <div class="nd-toolbar">
+      <div class="nd-toolbar__inner">
+        <span class="nd-toolbar__brand"><span class="logo">N</span> NicheDesk Research</span>
+        <div class="nd-toolbar__actions">
+          <button id="downloadHtml" type="button">Download .html</button>
+          <button id="exportCsv" type="button">Export CSV</button>
+          <button id="exportJson" type="button">Export JSON</button>
+          <button id="print" type="button">Print / PDF</button>
+          <button id="openSend" type="button" class="primary">Send to NicheDesk</button>
+        </div>
+      </div>
+    </div>
+
+    <section id="send" class="nd-send" hidden>
+      <div class="nd-send__inner">
+        <h2>Send keywords to NicheDesk</h2>
+        <p id="sendHint" class="nd-muted"></p>
+        <div class="nd-send__grid">
+          <label>Niche name<input id="sendName" type="text" /></label>
+          <label>Nest under<select id="sendParent"><option value="">Top level (no parent)</option></select></label>
+          <label>Keywords
+            <select id="sendWhich">
+              <option value="qualified">Qualified only</option>
+              <option value="all">All evaluated</option>
+            </select>
+          </label>
+        </div>
+        <div class="nd-send__actions">
+          <button id="sendGo" type="button" class="primary">Send</button>
+          <button id="sendCancel" type="button">Cancel</button>
+          <span id="sendResult" role="status"></span>
+        </div>
+      </div>
+    </section>
+
+    <main id="report" class="nd-report"><p class="nd-muted">Loading report…</p></main>
+
+    <script type="module" src="report.js"></script>
+  </body>
+</html>

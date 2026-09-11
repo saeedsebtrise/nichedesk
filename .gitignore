@@ -1,0 +1,14 @@
+node_modules
+.next
+out
+next-env.d.ts
+*.tsbuildinfo
+.env*
+!.env.example
+data/*.json
+
+data/*.csv
+dist/
+
+# local tooling
+.claude/

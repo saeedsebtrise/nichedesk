@@ -1,0 +1,47 @@
+{
+  "name": "nichedesk",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "verify": "npm run lint && npm run typecheck && npm run test && npm run build",
+    "demo:seed": "node scripts/seed-demo.mjs",
+    "demo:serve": "next start -p 3100",
+    "demo:shots": "node scripts/screenshots.mjs",
+    "license": "node scripts/license.mjs",
+    "extension:icons": "node scripts/extension-icons.mjs",
+    "extension:pack": "node scripts/pack-extension.mjs",
+    "extension:e2e": "node extension/test/e2e/run.mjs"
+  },
+  "dependencies": {
+    "@fontsource/bricolage-grotesque": "^5.3.0",
+    "@fontsource/plus-jakarta-sans": "^5.3.0",
+    "@neondatabase/serverless": "^1.1.0",
+    "next": "16.3.1",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.3.1",
+    "globals": "^16.5.0",
+    "happy-dom": "^18.0.1",
+    "playwright-core": "^1.63.0",
+    "tailwindcss": "^4",
+    "typescript": "^5",
+    "vitest": "^3"
+  }
+}

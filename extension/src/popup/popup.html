@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>NicheDesk Research</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header class="top">
+      <div class="brand">
+        <span class="logo" aria-hidden="true">N</span>
+        <div>
+          <h1>Niche<span>Desk</span> Research</h1>
+          <p>Etsy niche research</p>
+        </div>
+      </div>
+      <span id="statusPill" class="pill pill--idle">Ready</span>
+    </header>
+
+    <section class="panel status">
+      <p id="stateTitle" class="state-title">No task running</p>
+      <p id="stateDetail" class="state-detail"></p>
+      <ol class="stepper" id="stepper">
+        <li data-step="1"><span>1</span><em>Keywords</em></li>
+        <li data-step="2"><span>2</span><em>Snapshots</em></li>
+        <li data-step="3"><span>3</span><em>Audit</em></li>
+        <li data-step="4"><span>4</span><em>Report</em></li>
+      </ol>
+    </section>
+
+    <section class="panel">
+      <label class="field">
+        <span>Seed keyword</span>
+        <input id="seed" type="text" placeholder="e.g. pet blanket, tarot cloth…" autocomplete="off" />
+      </label>
+      <label class="field">
+        <span>Product type</span>
+        <select id="productType">
+          <option value="any">Any (no filter)</option>
+          <option value="digital">Digital only</option>
+          <option value="physical">Physical only</option>
+        </select>
+      </label>
+      <label class="check" title="Reads your already-open eRank Keyword Tool tab, with your own eRank filters applied">
+        <input id="useOpenTab" type="checkbox" />
+        <span>Use my open eRank tab (faster)</span>
+      </label>
+      <div class="csv">
+        <label class="link-button">
+          <input id="csvFile" type="file" accept=".csv,text/csv" hidden />
+          Or import an eRank CSV instead
+        </label>
+        <span id="csvChip" class="csv-chip" hidden></span>
+      </div>
+
+      <div id="dupeWarning" class="warning" hidden>
+        <p id="dupeText"></p>
+        <div class="row">
+          <button id="dupeContinue" class="btn btn--primary btn--small" type="button">Continue</button>
+          <button id="dupeCancel" class="btn btn--ghost btn--small" type="button">Cancel</button>
+        </div>
+      </div>
+
+      <p id="formError" class="form-error" role="alert" hidden></p>
+
+      <button id="startFull" class="btn btn--primary btn--block" type="button">Start full pipeline</button>
+      <div class="grid2">
+        <button class="btn btn--step" data-from="1" type="button">Step 1: Keywords</button>
+        <button class="btn btn--step" data-from="2" type="button">Step 2: Snapshots</button>
+        <button class="btn btn--step" data-from="3" type="button">Step 3: Listing audit</button>
+        <button class="btn btn--step" data-from="4" type="button">Step 4: Report</button>
+      </div>
+      <button id="stop" class="btn btn--stop btn--block" type="button" disabled>Stop</button>
+    </section>
+
+    <section class="panel" id="reportsPanel" hidden>
+      <h2 class="section-title">Reports</h2>
+      <ul id="reports" class="reports"></ul>
+    </section>
+
+    <section class="panel">
+      <div class="section-head">
+        <h2 class="section-title">Activity log</h2>
+        <div class="row">
+          <button id="logCopy" class="text-btn" type="button">Copy</button>
+          <button id="logClear" class="text-btn" type="button">Clear</button>
+          <button id="logExport" class="text-btn" type="button">Export</button>
+        </div>
+      </div>
+      <div id="log" class="log" aria-live="polite"></div>
+    </section>
+
+    <details class="panel settings" id="settings">
+      <summary class="section-title">Settings</summary>
+
+      <fieldset class="card">
+        <legend>Connection</legend>
+        <label class="field">
+          <span>License key <em>(required)</em></span>
+          <div class="input-row">
+            <input id="licenseKey" type="password" placeholder="NDSK-XXXX-XXXX-XXXX" autocomplete="off" spellcheck="false" />
+            <button id="testLicense" class="text-btn" type="button">Test</button>
+          </div>
+        </label>
+        <p id="licenseStatus" class="hint"></p>
+        <p id="contactLine" class="hint" hidden>Need a license key? <a id="contactLink" target="_blank" rel="noopener noreferrer">Contact us</a></p>
+      </fieldset>
+
+      <fieldset class="card">
+        <legend>Etsy API</legend>
+        <label class="field">
+          <span>API key</span>
+          <div class="input-row">
+            <input id="etsyApiKey" type="password" placeholder="keystring or keystring:shared_secret" autocomplete="off" spellcheck="false" />
+            <button id="testEtsy" class="text-btn" type="button">Test</button>
+          </div>
+        </label>
+        <p id="etsyStatus" class="hint">Free from etsy.com/developers → Your apps → Create a new app.</p>
+      </fieldset>
+
+      <fieldset class="card">
+        <legend>eRank</legend>
+        <label class="field">
+          <span>Search country</span>
+          <select id="erankCountry"></select>
+        </label>
+        <p class="hint">Uses your own eRank login at members.erank.com — log in there first. Each run uses one eRank search. eRank’s terms limit automated use; importing a CSV avoids that entirely.</p>
+      </fieldset>
+
+      <fieldset class="card">
+        <legend>eRank filters</legend>
+        <div class="grid2">
+          <label class="field"><span>Min searches</span><input id="minSearches" type="number" min="0" /></label>
+          <label class="field"><span>Max competition</span><input id="maxCompetition" type="number" min="0" /></label>
+          <label class="field"><span>Min words</span><input id="minWords" type="number" min="1" max="10" /></label>
+          <label class="field"><span>Max keywords</span><input id="maxKeywords" type="number" min="1" max="100" /></label>
+        </div>
+        <label class="check"><input id="requireSeedWord" type="checkbox" /><span>Require a seed word in each keyword</span></label>
+      </fieldset>
+
+      <fieldset class="card">
+        <legend>Niche qualification</legend>
+        <div class="grid2">
+          <label class="field"><span>Top listings / keyword</span><input id="topListings" type="number" min="1" max="48" /></label>
+          <label class="field"><span>Min qualified keywords</span><input id="minQualifiedKeywords" type="number" min="1" /></label>
+          <label class="field"><span>Max shop reviews</span><input id="maxShopReviews" type="number" min="0" /></label>
+          <label class="field"><span>Min beatable slots</span><input id="minBeatableSlots" type="number" min="0" /></label>
+          <label class="field"><span>Listings to audit</span><input id="maxAudits" type="number" min="0" max="100" /></label>
+        </div>
+      </fieldset>
+
+      <fieldset class="card">
+        <legend>NicheDesk workspace</legend>
+        <label class="field">
+          <span>Workspace URL</span>
+          <div class="input-row">
+            <input id="nicheDeskUrl" type="url" placeholder="http://localhost:3000" />
+            <button id="testNicheDesk" class="text-btn" type="button">Test</button>
+          </div>
+        </label>
+        <label class="field">
+          <span>Workspace password <em>(only if it has one)</em></span>
+          <input id="nicheDeskPassword" type="password" autocomplete="off" />
+        </label>
+        <p id="nicheDeskStatus" class="hint">Where “Send to NicheDesk” puts report keywords.</p>
+      </fieldset>
+
+      <button id="saveSettings" class="btn btn--primary btn--block" type="button">Save settings</button>
+      <p id="savedNote" class="saved" hidden>Saved</p>
+    </details>
+
+    <footer class="foot"><span id="version"></span> · NicheDesk</footer>
+
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>

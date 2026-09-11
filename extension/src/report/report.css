@@ -1,0 +1,127 @@
+/* Page chrome only — the report itself is styled by REPORT_CSS in lib/report-html.js. */
+
+/* A class that sets `display` would otherwise override the hidden attribute. */
+[hidden] {
+  display: none !important;
+}
+.nd-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  border-bottom: 2px solid rgb(244 103 31 / 0.7);
+  background: rgb(255 250 245 / 0.92);
+  backdrop-filter: blur(10px);
+}
+
+.nd-toolbar__inner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 10px 20px;
+}
+
+.nd-toolbar__brand {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-weight: 800;
+}
+
+.nd-toolbar .logo {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border-radius: 9px;
+  background: #f4671f;
+  color: #fff;
+  font-weight: 900;
+}
+
+.nd-toolbar__actions,
+.nd-send__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.nd-toolbar button,
+.nd-send button {
+  padding: 8px 14px;
+  border: 1px solid #f3dcc6;
+  border-radius: 999px;
+  background: #fff;
+  color: #5c4636;
+  font: 600 13px ui-sans-serif, system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.nd-toolbar button:hover,
+.nd-send button:hover {
+  border-color: #f4671f;
+  color: #e2560f;
+}
+
+.nd-toolbar button.primary,
+.nd-send button.primary {
+  border-color: #f4671f;
+  background: #f4671f;
+  color: #fff;
+}
+
+.nd-send {
+  border-bottom: 1px solid #f3dcc6;
+  background: #fff;
+}
+
+.nd-send__inner {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 18px 20px;
+}
+
+.nd-send h2 {
+  margin: 0 0 4px;
+  font-size: 17px;
+}
+
+.nd-send__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin: 12px 0;
+}
+
+.nd-send label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #5c4636;
+}
+
+.nd-send input,
+.nd-send select {
+  padding: 8px 10px;
+  border: 1px solid #f3dcc6;
+  border-radius: 10px;
+  font: 14px ui-sans-serif, system-ui, sans-serif;
+}
+
+#sendResult {
+  font-weight: 600;
+}
+
+#sendResult.good {
+  color: #047857;
+}
+
+#sendResult.bad {
+  color: #b42318;
+}
