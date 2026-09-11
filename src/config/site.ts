@@ -17,7 +17,7 @@ export const siteConfig = {
   // ~155 characters: the length search results show before truncating.
   description:
     "Organize eRank keyword exports into a nested niche tree. Filter 1,000+ Etsy keywords, color-code competition, and track every keyword from pending to done.",
-  author: "Zakria Afzal",
+  author: "Saeed Ahmed",
   locale: "en_US",
   /** Where the tool itself lives, so links and the sitemap stay in step. */
   appPath: "/app",
