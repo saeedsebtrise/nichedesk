@@ -1,11 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { NicheTreeList, NicheTreeSelect } from "@/components/niches/NicheTree";
-import { Banner, Button, FieldLabel, Modal, TextInput } from "@/components/ui/primitives";
+import { SubnichePreview } from "@/components/niches/SubnichePreview";
+import { Banner, Button, Checkbox, FieldLabel, Modal, TextInput } from "@/components/ui/primitives";
+import { defaultMinGroupSize, planSubniches } from "@/features/niches/auto-group";
 import { nichePathLabel } from "@/features/niches/tree";
 import type { Workspace } from "@/features/workspace/useWorkspace";
+
+export type AutoSubniches = { minGroupSize: number } | null;
 
 /**
  * The picker body — mounted only while the dialog is open, so each open starts
@@ -17,12 +21,14 @@ function NichePickerBody({
   onClose,
   confirmLabel,
   allowNone,
+  previewKeywords,
 }: {
   workspace: Workspace;
-  onConfirm: (nicheId: string | null) => void;
+  onConfirm: (nicheId: string | null, autoSubniches: AutoSubniches) => void;
   onClose: () => void;
   confirmLabel: string;
   allowNone: boolean;
+  previewKeywords?: string[];
 }) {
   const { tree, niches, busy } = workspace;
 
@@ -31,6 +37,22 @@ function NichePickerBody({
   const [newName, setNewName] = useState("");
   const [newParentId, setNewParentId] = useState<string | "all" | "none">("none");
   const [localError, setLocalError] = useState<string | null>(null);
+  const [autoOn, setAutoOn] = useState(true);
+  const [minSize, setMinSize] = useState(() => defaultMinGroupSize(previewKeywords?.length ?? 0));
+
+  // Typing a new name previews under that name; otherwise the selected niche.
+  const parentName =
+    newName.trim() || (selectedId ? (niches.find((niche) => niche.id === selectedId)?.name ?? "") : "");
+
+  const plan = useMemo(
+    () =>
+      previewKeywords && autoOn && parentName
+        ? planSubniches(previewKeywords, parentName, { minGroupSize: minSize })
+        : null,
+    [previewKeywords, autoOn, parentName, minSize],
+  );
+
+  const autoSubniches: AutoSubniches = previewKeywords && autoOn ? { minGroupSize: minSize } : null;
 
   const createAndUse = async () => {
     if (newName.trim() === "") {
@@ -41,7 +63,7 @@ function NichePickerBody({
     setLocalError(null);
     const parentId = newParentId === "none" || newParentId === "all" ? null : newParentId;
     const created = await workspace.createNiche(newName.trim(), parentId);
-    if (created) onConfirm(created.id);
+    if (created) onConfirm(created.id, autoSubniches);
   };
 
   return (
@@ -105,9 +127,39 @@ function NichePickerBody({
         </Button>
       </div>
 
+      {previewKeywords ? (
+        <div className="space-y-2 rounded-xl border border-brand-100 bg-brand-50/60 p-3">
+          <label className="flex items-center gap-2 text-sm font-semibold text-ink-900">
+            <Checkbox checked={autoOn} onChange={(event) => setAutoOn(event.target.checked)} />
+            Auto-create subniches
+          </label>
+          {autoOn ? (
+            <>
+              <label className="flex items-center gap-2 text-xs text-ink-700">
+                Min keywords per subniche
+                <TextInput
+                  type="number"
+                  min={2}
+                  value={String(minSize)}
+                  onChange={(event) => setMinSize(Math.max(2, Number(event.target.value) || 2))}
+                  className="w-20 py-1 text-xs"
+                />
+              </label>
+              {plan ? (
+                <SubnichePreview plan={plan} parentName={parentName} />
+              ) : (
+                <p className="text-xs text-ink-500">Pick or create a niche to preview its subniches.</p>
+              )}
+            </>
+          ) : (
+            <p className="text-xs text-ink-500">All keywords go straight into the niche you choose.</p>
+          )}
+        </div>
+      ) : null}
+
       <div className="flex flex-wrap justify-end gap-2 border-t border-cream-200 pt-3">
         {allowNone ? (
-          <Button variant="ghost" onClick={() => onConfirm(null)} disabled={busy}>
+          <Button variant="ghost" onClick={() => onConfirm(null, null)} disabled={busy}>
             Clear niche
           </Button>
         ) : null}
@@ -117,7 +169,7 @@ function NichePickerBody({
         <Button
           variant="primary"
           disabled={busy || selectedId === null}
-          onClick={() => selectedId && onConfirm(selectedId)}
+          onClick={() => selectedId && onConfirm(selectedId, autoSubniches)}
         >
           {confirmLabel}
         </Button>
@@ -131,7 +183,9 @@ function NichePickerBody({
  *
  * Both flows are the same choice — pick an existing niche from the tree, or
  * create one and use it immediately. The create form carries a parent picker so
- * a subniche can be made without a detour through the niche manager.
+ * a subniche can be made without a detour through the niche manager. When
+ * `previewKeywords` is given (the import flow), it also offers to sort those
+ * keywords into automatic subniches, with a live preview.
  */
 export function NichePickerModal({
   open,
@@ -142,16 +196,18 @@ export function NichePickerModal({
   description,
   confirmLabel,
   allowNone = false,
+  previewKeywords,
 }: {
   open: boolean;
   onClose: () => void;
-  onConfirm: (nicheId: string | null) => void;
+  onConfirm: (nicheId: string | null, autoSubniches: AutoSubniches) => void;
   workspace: Workspace;
   title: string;
   description: string;
   confirmLabel: string;
   /** Move flows may clear the niche; add flows must land somewhere. */
   allowNone?: boolean;
+  previewKeywords?: string[];
 }) {
   return (
     <Modal open={open} onClose={onClose} title={title} description={description}>
@@ -161,6 +217,7 @@ export function NichePickerModal({
         onClose={onClose}
         confirmLabel={confirmLabel}
         allowNone={allowNone}
+        previewKeywords={previewKeywords}
       />
     </Modal>
   );

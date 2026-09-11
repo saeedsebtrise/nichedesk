@@ -3,10 +3,81 @@
 import { useMemo, useState } from "react";
 
 import { NicheTreeSelect } from "@/components/niches/NicheTree";
+import { SubnichePreview } from "@/components/niches/SubnichePreview";
 import { Banner, Button, FieldLabel, Modal, TextInput } from "@/components/ui/primitives";
+import { defaultMinGroupSize, planSubniches } from "@/features/niches/auto-group";
 import { canReparent, flattenTree, withDescendantIds } from "@/features/niches/tree";
+import type { NicheNode } from "@/features/niches/types";
 import type { Workspace } from "@/features/workspace/useWorkspace";
 import { cn, formatNumber } from "@/lib/utils";
+
+/**
+ * "Auto subniches" for a niche that already holds keywords: previews the
+ * themes among its own keywords, then creates those subniches and moves the
+ * keywords into them.
+ */
+function AutoSubnichePanel({
+  niche,
+  workspace,
+  onDone,
+}: {
+  niche: NicheNode;
+  workspace: Workspace;
+  onDone: (message: string) => void;
+}) {
+  const own = useMemo(
+    () => workspace.keywords.filter((keyword) => keyword.nicheId === niche.id),
+    [workspace.keywords, niche.id],
+  );
+  const [minSize, setMinSize] = useState(() => defaultMinGroupSize(own.length));
+  const plan = useMemo(
+    () => planSubniches(own.map((keyword) => keyword.keyword), niche.name, { minGroupSize: minSize }),
+    [own, niche.name, minSize],
+  );
+
+  if (own.length === 0) {
+    return (
+      <p className="mt-2 rounded-xl bg-cream-50 p-3 text-xs text-ink-500">
+        “{niche.name}” has no keywords of its own to sort.
+      </p>
+    );
+  }
+
+  const apply = async () => {
+    const result = await workspace.autoGroupNiche(niche.id, minSize);
+    if (!result) return;
+    const moved = result.subniches.reduce((sum, subniche) => sum + subniche.moved, 0);
+    onDone(
+      `Sorted ${formatNumber(moved)} keyword${moved === 1 ? "" : "s"} of “${niche.name}” into ` +
+        `${result.subniches.length} subniche${result.subniches.length === 1 ? "" : "s"}; ` +
+        `${formatNumber(result.stayed)} stayed in “${niche.name}”.`,
+    );
+  };
+
+  return (
+    <div className="mt-2 space-y-2 rounded-xl border border-brand-100 bg-brand-50/60 p-3">
+      <label className="flex items-center gap-2 text-xs text-ink-700">
+        Min keywords per subniche
+        <TextInput
+          type="number"
+          min={2}
+          value={String(minSize)}
+          onChange={(event) => setMinSize(Math.max(2, Number(event.target.value) || 2))}
+          className="w-20 py-1 text-xs"
+        />
+      </label>
+      <SubnichePreview plan={plan} parentName={niche.name} />
+      <Button
+        variant="primary"
+        className="text-xs"
+        disabled={workspace.busy || plan.groups.length === 0}
+        onClick={apply}
+      >
+        Create {plan.groups.length} subniche{plan.groups.length === 1 ? "" : "s"} &amp; move keywords
+      </Button>
+    </div>
+  );
+}
 
 /**
  * The editor body — mounted only while the dialog is open, so every open starts
@@ -30,6 +101,8 @@ function NicheManagerBody({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [autoId, setAutoId] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
 
   const nodes = useMemo(() => flattenTree(tree), [tree]);
@@ -78,6 +151,7 @@ function NicheManagerBody({
       {workspace.error ?? localError ? (
         <Banner tone="error">{localError ?? workspace.error}</Banner>
       ) : null}
+      {notice ? <Banner tone="info">{notice}</Banner> : null}
 
       <div className="space-y-2 rounded-xl border border-cream-200 bg-cream-50 p-3">
         <FieldLabel>Add a niche</FieldLabel>
@@ -197,6 +271,18 @@ function NicheManagerBody({
                           className="max-w-40 py-1 text-xs"
                         />
                         <Button
+                          variant={autoId === node.id ? "chipActive" : "ghost"}
+                          className="px-2.5 py-1 text-xs"
+                          disabled={own < 2}
+                          title={own < 2 ? "Needs keywords of its own to sort" : "Sort this niche's keywords into subniches"}
+                          onClick={() => {
+                            setNotice(null);
+                            setAutoId(autoId === node.id ? null : node.id);
+                          }}
+                        >
+                          Auto subniches
+                        </Button>
+                        <Button
                           variant="ghost"
                           className="px-2.5 py-1 text-xs"
                           onClick={() => {
@@ -258,6 +344,17 @@ function NicheManagerBody({
                       </Button>
                     </div>
                   </div>
+                ) : null}
+
+                {autoId === node.id ? (
+                  <AutoSubnichePanel
+                    niche={node}
+                    workspace={workspace}
+                    onDone={(message) => {
+                      setAutoId(null);
+                      setNotice(message);
+                    }}
+                  />
                 ) : null}
               </li>
             );

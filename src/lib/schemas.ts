@@ -56,6 +56,14 @@ export const importSchema = z.object({
     .min(1, "Select at least one keyword.")
     // Guards the request size; a single eRank export tops out well below this.
     .max(20_000, "That is more than 20,000 keywords — split the import."),
+  autoSubniches: z
+    .object({ minGroupSize: z.coerce.number().int().min(2).max(10_000).optional() })
+    .nullable()
+    .optional(),
+});
+
+export const autoGroupSchema = z.object({
+  minGroupSize: z.coerce.number().int().min(2).max(10_000).optional(),
 });
 
 export const bulkSchema = z.object({

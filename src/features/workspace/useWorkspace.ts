@@ -6,7 +6,9 @@ import { buildTree, nichePathLabel } from "@/features/niches/tree";
 import type { ImportRow, Keyword } from "@/features/keywords/types";
 import type { Niche } from "@/features/niches/types";
 import type {
+  AutoGroupResult,
   BulkAction,
+  ImportResult,
   KeywordPatch,
   NicheDeleteMode,
   Settings,
@@ -100,11 +102,23 @@ export function useWorkspace(initial: StoreData) {
         nicheId: string | null;
       }) => run(() => call<Keyword>("/api/keywords", { method: "POST", body: body(input) })),
 
-      importKeywords: (rows: ImportRow[], nicheId: string | null) =>
+      importKeywords: (
+        rows: ImportRow[],
+        nicheId: string | null,
+        autoSubniches: { minGroupSize: number } | null = null,
+      ) =>
         run(() =>
-          call<{ added: number; skipped: number }>("/api/keywords/import", {
+          call<ImportResult>("/api/keywords/import", {
             method: "POST",
-            body: body({ rows, nicheId }),
+            body: body({ rows, nicheId, autoSubniches }),
+          }),
+        ),
+
+      autoGroupNiche: (id: string, minGroupSize: number) =>
+        run(() =>
+          call<AutoGroupResult>(`/api/niches/${id}/auto-group`, {
+            method: "POST",
+            body: body({ minGroupSize }),
           }),
         ),
 

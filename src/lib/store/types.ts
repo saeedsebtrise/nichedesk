@@ -48,7 +48,27 @@ export type BulkAction =
   | { action: "delete" }
   | { action: "move"; nicheId: string | null };
 
-export type ImportResult = { added: number; skipped: number };
+export type SubnicheOutcome = { name: string; nicheId: string; created: boolean; added: number };
+
+export type ImportResult = {
+  added: number;
+  skipped: number;
+  /** Present when the import sorted keywords into auto-created subniches. */
+  subniches?: SubnicheOutcome[];
+  /** Keywords that fit no subniche and went into the chosen niche itself. */
+  stayed?: number;
+};
+
+export type ImportOptions = {
+  /** Sort the rows into subniches of the target niche (see planSubniches). */
+  autoSubniches?: { minGroupSize?: number } | null;
+};
+
+export type AutoGroupResult = {
+  subniches: { name: string; nicheId: string; created: boolean; moved: number }[];
+  /** Keywords left directly in the niche. */
+  stayed: number;
+};
 
 export type NewLicense = { days: number; note: string; maxDevices: number };
 export type LicenseAction = "revoke" | "reset-devices";
@@ -79,7 +99,9 @@ export interface Store {
   deleteNiche(id: string, mode: NicheDeleteMode): Promise<void>;
 
   createKeyword(input: NewKeyword): Promise<Keyword>;
-  importKeywords(rows: ImportRow[], nicheId: string | null): Promise<ImportResult>;
+  importKeywords(rows: ImportRow[], nicheId: string | null, options?: ImportOptions): Promise<ImportResult>;
+  /** Sorts a niche's own keywords into auto-created subniches. */
+  autoGroupNiche(nicheId: string, options?: { minGroupSize?: number }): Promise<AutoGroupResult>;
   updateKeyword(id: string, patch: KeywordPatch): Promise<Keyword>;
   bulkKeywords(ids: string[], action: BulkAction): Promise<number>;
 

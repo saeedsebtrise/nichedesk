@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 
-import { NichePickerModal } from "@/components/niches/NichePickerModal";
+import { NichePickerModal, type AutoSubniches } from "@/components/niches/NichePickerModal";
 import { Banner, Button, Checkbox, TextInput } from "@/components/ui/primitives";
 import { parseErankCsv } from "@/features/keywords/csv";
 import {
@@ -68,6 +68,10 @@ export function SortKeywordTab({ workspace }: { workspace: Workspace }) {
   );
   const allMatchingSelected = filtered.length > 0 && selectedInView.length === filtered.length;
 
+  // What "Add to a niche" saves: the selected rows, or every match if none are selected.
+  const targetRows = selectedInView.length > 0 ? selectedInView : filtered;
+  const previewKeywords = useMemo(() => targetRows.map((row) => row.keyword), [targetRows]);
+
   const loadFile = async (file: File) => {
     const { rows: parsed, warnings: parseWarnings } = parseErankCsv(await file.text());
 
@@ -122,9 +126,9 @@ export function SortKeywordTab({ workspace }: { workspace: Workspace }) {
     });
   };
 
-  const addToNiche = async (nicheId: string | null) => {
-    const payload = selectedInView.length > 0 ? selectedInView : filtered;
-    const result = await workspace.importKeywords(payload, nicheId);
+  const addToNiche = async (nicheId: string | null, autoSubniches: AutoSubniches) => {
+    const payload = targetRows;
+    const result = await workspace.importKeywords(payload, nicheId, autoSubniches);
     setPickerOpen(false);
 
     if (!result) return;
@@ -132,8 +136,15 @@ export function SortKeywordTab({ workspace }: { workspace: Workspace }) {
     // Read the label after the save: a niche created in the dialog moments ago
     // is not in this callback's captured `niches`.
     const where = nicheId ? workspace.labelFor(nicheId) : "no niche";
+    const subniches = result.subniches ?? [];
+    const created = subniches.filter((subniche) => subniche.created).length;
     setNotice(
       `Added ${formatNumber(result.added)} keyword${result.added === 1 ? "" : "s"} to ${where}` +
+        (subniches.length > 0
+          ? ` · sorted into ${subniches.length} subniche${subniches.length === 1 ? "" : "s"}` +
+            (created < subniches.length ? ` (${created} new)` : "") +
+            `, ${formatNumber(result.stayed ?? 0)} stayed in ${where}`
+          : "") +
         (result.skipped > 0 ? ` · skipped ${formatNumber(result.skipped)} already there` : ""),
     );
 
@@ -449,9 +460,10 @@ export function SortKeywordTab({ workspace }: { workspace: Workspace }) {
         workspace={workspace}
         title="Add to a niche"
         description={`Choose a niche for the ${formatNumber(
-          selectedInView.length > 0 ? selectedInView.length : filtered.length,
+          targetRows.length,
         )} selected keyword(s), or create a new one.`}
         confirmLabel="Add to this niche"
+        previewKeywords={previewKeywords}
       />
     </div>
   );

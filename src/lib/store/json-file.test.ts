@@ -243,6 +243,90 @@ describe("updateSettings", () => {
   });
 });
 
+describe("automatic subniches", () => {
+  const patternRows = [
+    "crochet pattern",
+    "crochet pattern for beginners",
+    "easy crochet pattern",
+    "sewing pattern",
+    "sewing pattern dress",
+    "sewing patterns women",
+    "amigurumi pattern",
+  ].map((keyword) => row(keyword));
+
+  it("sorts an import into subniches of the chosen niche", async () => {
+    const parent = await store.createNiche({ name: "Pattern", parentId: null });
+
+    const result = await store.importKeywords(patternRows, parent.id, { autoSubniches: { minGroupSize: 3 } });
+    const data = await store.read();
+
+    expect(result).toMatchObject({ added: 7, skipped: 0, stayed: 1 });
+    expect(result.subniches?.map((s) => [s.name, s.added, s.created])).toEqual([
+      ["crochet pattern", 3, true],
+      ["sewing pattern", 3, true],
+    ]);
+    const crochet = data.niches.find((n) => n.name === "crochet pattern");
+    expect(crochet?.parentId).toBe(parent.id);
+    expect(data.keywords.filter((k) => k.nicheId === crochet?.id)).toHaveLength(3);
+    expect(data.keywords.find((k) => k.keyword === "amigurumi pattern")?.nicheId).toBe(parent.id);
+  });
+
+  it("reuses a subniche that already exists and skips keywords it holds", async () => {
+    const parent = await store.createNiche({ name: "Pattern", parentId: null });
+    await store.importKeywords(patternRows, parent.id, { autoSubniches: { minGroupSize: 3 } });
+
+    const again = await store.importKeywords(patternRows, parent.id, { autoSubniches: { minGroupSize: 3 } });
+
+    expect(again.added).toBe(0);
+    expect(again.skipped).toBe(7);
+    expect(again.subniches?.every((s) => !s.created)).toBe(true);
+    expect((await store.read()).niches).toHaveLength(3);
+  });
+
+  it("imports straight into the niche when auto subniches are off", async () => {
+    const parent = await store.createNiche({ name: "Pattern", parentId: null });
+
+    const result = await store.importKeywords(patternRows, parent.id);
+
+    expect(result).toEqual({ added: 7, skipped: 0 });
+    expect((await store.read()).niches).toHaveLength(1);
+  });
+
+  it("sorts a niche's existing keywords into subniches", async () => {
+    const parent = await store.createNiche({ name: "Pattern", parentId: null });
+    await store.importKeywords(patternRows, parent.id);
+
+    const result = await store.autoGroupNiche(parent.id, { minGroupSize: 3 });
+    const data = await store.read();
+
+    expect(result.subniches.map((s) => [s.name, s.moved])).toEqual([
+      ["crochet pattern", 3],
+      ["sewing pattern", 3],
+    ]);
+    expect(result.stayed).toBe(1);
+    expect(data.keywords.filter((k) => k.nicheId === parent.id).map((k) => k.keyword)).toEqual([
+      "amigurumi pattern",
+    ]);
+  });
+
+  it("leaves a keyword in place rather than duplicate it in a subniche that has it", async () => {
+    const parent = await store.createNiche({ name: "Pattern", parentId: null });
+    const crochet = await store.createNiche({ name: "crochet pattern", parentId: parent.id });
+    await store.importKeywords([row("crochet pattern")], crochet.id);
+    await store.importKeywords(patternRows, parent.id);
+
+    const result = await store.autoGroupNiche(parent.id, { minGroupSize: 3 });
+    const data = await store.read();
+
+    expect(result.subniches.find((s) => s.name === "crochet pattern")).toMatchObject({ created: false, moved: 2 });
+    expect(data.keywords.filter((k) => k.keyword === "crochet pattern")).toHaveLength(2);
+  });
+
+  it("rejects a niche that does not exist", async () => {
+    await expect(store.autoGroupNiche("nope")).rejects.toThrow(StoreValidationError);
+  });
+});
+
 describe("licenses", () => {
   it("issues a key that expires the given number of days out", async () => {
     const license = await store.createLicense({ days: 30, note: "Ali", maxDevices: 3 });

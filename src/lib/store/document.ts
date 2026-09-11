@@ -9,15 +9,19 @@ import {
   type License,
   type LicenseCheck,
 } from "@/features/licenses/licenses";
+import { planSubniches } from "@/features/niches/auto-group";
 import { canReparent, withDescendantIds } from "@/features/niches/tree";
 import { TRENDS, TYPES } from "@/features/keywords/types";
 import type { ImportRow, Keyword } from "@/features/keywords/types";
 import type { Niche } from "@/features/niches/types";
 import {
   StoreValidationError,
+  type AutoGroupResult,
   type BulkAction,
   type ColumnKey,
+  type ImportOptions,
   type ImportResult,
+  type SubnicheOutcome,
   type KeywordPatch,
   type LicenseAction,
   type NewKeyword,
@@ -215,47 +219,135 @@ export abstract class DocumentStore implements Store {
     });
   }
 
-  importKeywords(rows: ImportRow[], nicheId: string | null): Promise<ImportResult> {
+  /** The child of `parentId` called `name` (any case), created if it is missing. */
+  private ensureChild(data: StoreData, parentId: string, name: string): { niche: Niche; created: boolean } {
+    const existing = data.niches.find(
+      (niche) => niche.parentId === parentId && niche.name.toLowerCase() === name.toLowerCase(),
+    );
+    if (existing) return { niche: existing, created: false };
+
+    const niche: Niche = { id: randomUUID(), name, parentId, createdAt: new Date().toISOString() };
+    data.niches.push(niche);
+    return { niche, created: true };
+  }
+
+  /**
+   * Adds rows to one niche. Re-importing the same eRank export is routine, so
+   * keywords the niche already holds are skipped rather than duplicated.
+   */
+  private addRows(data: StoreData, nicheId: string | null, rows: ImportRow[]): ImportResult {
+    const existing = new Set(
+      data.keywords
+        .filter((keyword) => keyword.nicheId === nicheId)
+        .map((keyword) => keyword.keyword.toLowerCase()),
+    );
+
+    let added = 0;
+    let skipped = 0;
+
+    for (const row of rows) {
+      const name = row.keyword.trim();
+      if (name === "") continue;
+
+      const key = name.toLowerCase();
+      if (existing.has(key)) {
+        skipped += 1;
+        continue;
+      }
+      existing.add(key);
+
+      data.keywords.push({
+        id: randomUUID(),
+        keyword: name,
+        volume: wholeNumber(row.volume),
+        competition: wholeNumber(row.competition),
+        nicheId,
+        trend: "Evergreen",
+        type: "White hat",
+        status: "pending",
+        tick: false,
+        createdAt: new Date().toISOString(),
+      });
+      added += 1;
+    }
+
+    return { added, skipped };
+  }
+
+  importKeywords(rows: ImportRow[], nicheId: string | null, options: ImportOptions = {}): Promise<ImportResult> {
     return this.updateWorkspace((data) => {
       const target = this.requireNiche(data, nicheId);
-      // Re-importing the same eRank export is routine, so skip keywords the
-      // target niche already holds instead of creating duplicate rows.
-      const existing = new Set(
-        data.keywords
-          .filter((keyword) => keyword.nicheId === target)
-          .map((keyword) => keyword.keyword.toLowerCase()),
+      if (!options.autoSubniches || target === null) return this.addRows(data, target, rows);
+
+      const parent = data.niches.find((niche) => niche.id === target) as Niche;
+      const clean = rows.filter((row) => row.keyword.trim() !== "");
+      const plan = planSubniches(
+        clean.map((row) => row.keyword),
+        parent.name,
+        { minGroupSize: options.autoSubniches.minGroupSize },
       );
 
       let added = 0;
       let skipped = 0;
+      const subniches: SubnicheOutcome[] = [];
 
-      for (const row of rows) {
-        const name = row.keyword.trim();
-        if (name === "") continue;
-
-        const key = name.toLowerCase();
-        if (existing.has(key)) {
-          skipped += 1;
-          continue;
-        }
-        existing.add(key);
-
-        data.keywords.push({
-          id: randomUUID(),
-          keyword: name,
-          volume: wholeNumber(row.volume),
-          competition: wholeNumber(row.competition),
-          nicheId: target,
-          trend: "Evergreen",
-          type: "White hat",
-          status: "pending",
-          tick: false,
-          createdAt: new Date().toISOString(),
-        });
-        added += 1;
+      for (const group of plan.groups) {
+        const { niche, created } = this.ensureChild(data, target, group.name);
+        const result = this.addRows(data, niche.id, group.members.map((index) => clean[index]));
+        added += result.added;
+        skipped += result.skipped;
+        subniches.push({ name: niche.name, nicheId: niche.id, created, added: result.added });
       }
 
-      return { added, skipped };
+      const rest = this.addRows(data, target, plan.rest.map((index) => clean[index]));
+      return {
+        added: added + rest.added,
+        skipped: skipped + rest.skipped,
+        subniches,
+        stayed: rest.added,
+      };
+    });
+  }
+
+  autoGroupNiche(nicheId: string, options: { minGroupSize?: number } = {}): Promise<AutoGroupResult> {
+    return this.updateWorkspace((data) => {
+      const parent = data.niches.find((niche) => niche.id === nicheId);
+      if (!parent) throw new StoreValidationError("That niche no longer exists.");
+
+      const own = data.keywords.filter((keyword) => keyword.nicheId === nicheId);
+      const plan = planSubniches(
+        own.map((keyword) => keyword.keyword),
+        parent.name,
+        options,
+      );
+      let stayed = plan.rest.length;
+
+      const subniches = plan.groups.map((group) => {
+        const { niche, created } = this.ensureChild(data, nicheId, group.name);
+        const held = new Set(
+          data.keywords
+            .filter((keyword) => keyword.nicheId === niche.id)
+            .map((keyword) => keyword.keyword.toLowerCase()),
+        );
+
+        let moved = 0;
+        for (const index of group.members) {
+          const keyword = own[index];
+          // The subniche already has this keyword: moving would duplicate it,
+          // and deleting would lose this copy's status, so it stays put.
+          if (held.has(keyword.keyword.toLowerCase())) {
+            stayed += 1;
+            continue;
+          }
+          keyword.nicheId = niche.id;
+          held.add(keyword.keyword.toLowerCase());
+          moved += 1;
+        }
+
+        return { name: niche.name, nicheId: niche.id, created, moved };
+      });
+
+      return { subniches, stayed };
     });
   }
 
