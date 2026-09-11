@@ -10,6 +10,7 @@ import sort from "@/assets/screenshots/sort.png";
 import table from "@/assets/screenshots/table.png";
 import { STORY, type StoryStep } from "@/components/marketing/content";
 import { Check } from "@/components/marketing/icons";
+import { MacWindow } from "@/components/marketing/MacWindow";
 import { EASE } from "@/components/marketing/motion";
 import { SectionHeading } from "@/components/marketing/SectionHeading";
 import { cn } from "@/lib/utils";
@@ -23,17 +24,7 @@ import { cn } from "@/lib/utils";
 function BrowserFrame({ src, alt, children }: { src: StaticImageData; alt: string; children?: ReactNode }) {
   return (
     <div className="relative">
-      <div className="overflow-hidden rounded-2xl bg-white shadow-[0_40px_80px_-30px_rgba(36,23,15,0.45)] ring-1 ring-ink-900/10">
-        <div className="flex items-center gap-1.5 border-b border-cream-200 bg-cream-50 px-3 py-2">
-          <span className="size-2.5 rounded-full bg-red-400" />
-          <span className="size-2.5 rounded-full bg-amber-400" />
-          <span className="size-2.5 rounded-full bg-emerald-400" />
-          <span className="ml-3 truncate rounded-md bg-white px-2 py-0.5 text-[10px] text-ink-500 ring-1 ring-cream-200">
-            nichedesk · /app
-          </span>
-        </div>
-        <Image src={src} alt={alt} placeholder="blur" sizes="(min-width: 1024px) 560px, 92vw" className="h-auto w-full" />
-      </div>
+      <MacWindow src={src} alt={alt} compact sizes="(min-width: 1024px) 560px, 92vw" />
       {children}
     </div>
   );
@@ -54,7 +45,8 @@ function Visual({ id }: { id: StoryStep["id"] }) {
   if (id === "upload") {
     return (
       <BrowserFrame src={sort} alt="The Sort Keyword tab with an eRank CSV loaded into the import preview">
-        <Float className="-top-4 right-3 w-64 sm:right-6">
+        {/* Sits over the real toast in the screenshot, as a zoomed-in callout of it. */}
+        <Float className="top-11 right-1.5 w-64">
           <div className="flex items-start gap-3 rounded-2xl border border-l-4 border-cream-200 border-l-emerald-500 bg-white p-3 shadow-xl">
             <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-emerald-600 text-sm font-black text-white">✓</span>
             <div>

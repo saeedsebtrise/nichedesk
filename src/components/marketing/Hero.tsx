@@ -3,7 +3,7 @@ import Link from "next/link";
 import work from "@/assets/screenshots/work.png";
 import { FlowDiagram } from "@/components/marketing/FlowDiagram";
 import { ArrowRight, Check } from "@/components/marketing/icons";
-import { MacbookFrame } from "@/components/marketing/MacbookFrame";
+import { MacWindow } from "@/components/marketing/MacWindow";
 import { Reveal, ScrollTilt, WordReveal } from "@/components/marketing/motion";
 import { siteConfig } from "@/config/site";
 
@@ -83,17 +83,17 @@ export function Hero() {
         <FlowDiagram />
       </div>
 
-      <div className="relative mx-auto mt-14 max-w-5xl px-4 pb-24 sm:mt-20 sm:pb-32">
+      <div className="relative mx-auto mt-14 max-w-6xl px-4 pb-24 sm:mt-20 sm:pb-32">
         <div
           aria-hidden="true"
           className="absolute inset-x-[10%] top-[20%] bottom-[10%] -z-10 rounded-full bg-[radial-gradient(closest-side,rgba(244,103,31,0.35),transparent)] blur-3xl"
         />
         <ScrollTilt>
-          <MacbookFrame
+          <MacWindow
             src={work}
-            alt="NicheDesk Upcoming Work view on a MacBook: stat tiles, filters, competition colour rules, and a keyword table with niche paths such as png › christmas png"
+            alt="NicheDesk Upcoming Work view in a browser window: stat tiles, filters, competition colour rules, and a keyword table with niche paths such as png › christmas png"
             priority
-            sizes="(min-width: 1100px) 1024px, 94vw"
+            sizes="(min-width: 1200px) 1120px, 94vw"
           />
         </ScrollTilt>
       </div>
