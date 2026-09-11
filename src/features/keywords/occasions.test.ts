@@ -5,6 +5,7 @@ import {
   OCCASION_BY_ID,
   detectOccasion,
   easterSunday,
+  groupByOccasion,
   nextWindow,
   nthWeekday,
   phaseOf,
@@ -39,6 +40,21 @@ describe("detectOccasion", () => {
   it("ignores keywords with no occasion, and words that only contain one", () => {
     expect(detectOccasion("dad joke shirt")).toBeNull();
     expect(detectOccasion("waterfall print")).toBeNull();
+  });
+});
+
+describe("groupByOccasion", () => {
+  it("puts keywords under their occasion and leaves the rest out", () => {
+    const groups = groupByOccasion([
+      { keyword: "santa png" },
+      { keyword: "grinch shirt" },
+      { keyword: "ghost png" },
+      { keyword: "boho png" },
+    ]);
+
+    expect(groups.get("christmas")?.map((k) => k.keyword)).toEqual(["santa png", "grinch shirt"]);
+    expect(groups.get("halloween")?.map((k) => k.keyword)).toEqual(["ghost png"]);
+    expect(groups.size).toBe(2);
   });
 });
 

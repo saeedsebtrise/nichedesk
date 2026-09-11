@@ -316,6 +316,19 @@ export function countByOccasion(keywords: { keyword: string; status: string }[])
   return counts;
 }
 
+/** Keywords grouped under the occasion they are for; keywords with none are left out. */
+export function groupByOccasion<T extends { keyword: string }>(items: T[]): Map<OccasionId, T[]> {
+  const groups = new Map<OccasionId, T[]>();
+  for (const item of items) {
+    const occasion = detectOccasion(item.keyword);
+    if (!occasion) continue;
+    const group = groups.get(occasion.id);
+    if (group) group.push(item);
+    else groups.set(occasion.id, [item]);
+  }
+  return groups;
+}
+
 export type SeasonRow = OccasionCount & { occasion: Occasion; window: OccasionWindow; phase: OccasionPhase };
 
 /** Every occasion's next window and phase as seen from `today`, soonest first. */
