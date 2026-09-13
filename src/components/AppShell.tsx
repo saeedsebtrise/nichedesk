@@ -10,9 +10,10 @@ import { CalendarTab } from "@/components/app/CalendarTab";
 import { CommandPalette, PaletteShortcut, type PaletteItem } from "@/components/app/CommandPalette";
 import { DuplicatesTab } from "@/components/app/DuplicatesTab";
 import { OverviewTab } from "@/components/app/OverviewTab";
-import { ArrowUpRight, Calendar, Check, Copies, Flame, ICONS, LayoutGrid, Menu, Plus } from "@/components/marketing/icons";
+import { ArrowUpRight, Calendar, Check, Copies, Flame, ICONS, LayoutGrid, Menu, Plus, Sliders } from "@/components/marketing/icons";
 import { MotionProvider } from "@/components/marketing/motion";
 import { NicheManagerModal } from "@/components/niches/NicheManagerModal";
+import { ColorRulesModal } from "@/components/settings/ColorRulesModal";
 import { SortKeywordTab } from "@/components/sort/SortKeywordTab";
 import { Banner, Button } from "@/components/ui/primitives";
 import { ToastProvider } from "@/components/ui/toast";
@@ -66,6 +67,7 @@ function Desk({ initialData, locked }: { initialData: StoreData; locked: boolean
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [managerOpen, setManagerOpen] = useState(false);
+  const [colorsOpen, setColorsOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const go = useCallback((next: AppTab) => {
@@ -177,6 +179,18 @@ function Desk({ initialData, locked }: { initialData: StoreData; locked: boolean
         run: () => setManagerOpen(true),
       },
       {
+        id: "act-colors",
+        group: "Actions",
+        label: "Colour rules",
+        detail: "Choose volume and competition colours",
+        keywords: "color colours settings volume competition green yellow red",
+        icon: <Sliders className="size-4" />,
+        run: () => {
+          setDrawerOpen(false);
+          setColorsOpen(true);
+        },
+      },
+      {
         id: "act-export",
         group: "Actions",
         label: "Export Upcoming Work to CSV",
@@ -273,6 +287,10 @@ function Desk({ initialData, locked }: { initialData: StoreData; locked: boolean
       onNiche={openNiche}
       onManageNiches={() => setManagerOpen(true)}
       onOpenPalette={() => setPaletteOpen(true)}
+      onOpenColors={() => {
+        setDrawerOpen(false);
+        setColorsOpen(true);
+      }}
       footer={footer}
     />
   );
@@ -408,6 +426,7 @@ function Desk({ initialData, locked }: { initialData: StoreData; locked: boolean
 
       <KeywordFormModal open={addOpen} onClose={() => setAddOpen(false)} workspace={workspace} keyword={null} />
       <NicheManagerModal open={managerOpen} onClose={() => setManagerOpen(false)} workspace={workspace} />
+      <ColorRulesModal open={colorsOpen} onClose={() => setColorsOpen(false)} workspace={workspace} />
       <CommandPalette
         open={paletteOpen}
         onClose={() => setPaletteOpen(false)}

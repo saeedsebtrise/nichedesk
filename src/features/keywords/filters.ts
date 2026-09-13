@@ -123,7 +123,7 @@ export function applyWorkFilters(keywords: Keyword[], filters: WorkFilters, nich
   });
 }
 
-export type SortKey = "keyword" | "volume" | "competition" | "score";
+export type SortKey = "keyword" | "volume" | "competition" | "score" | "ip";
 export type SortDirection = "asc" | "desc";
 export type SortRule = { key: SortKey; direction: SortDirection };
 
@@ -131,7 +131,12 @@ export type SortRule = { key: SortKey; direction: SortDirection };
 export const MAX_SORT_RULES = 3;
 
 /** The colour cut-offs, which group rows when another sort level follows. */
-export type SortBands = { competitionRules: CompetitionRules; volumeRules: VolumeRules };
+export type SortBands = {
+  competitionRules: CompetitionRules;
+  volumeRules: VolumeRules;
+  /** COPYRIGHT/IP rank of a keyword (see IP_RANK); results arrive in the background, so it is passed in. */
+  ipRank?: (keyword: string) => number;
+};
 
 const DEFAULT_BANDS: SortBands = { competitionRules: DEFAULT_COMPETITION_RULES, volumeRules: DEFAULT_VOLUME_RULES };
 
@@ -139,10 +144,12 @@ const VOLUME_RANK: Record<VolumeBand, number> = { low: 0, mid: 1, high: 2 };
 const COMPETITION_RANK: Record<CompetitionBand, number> = { green: 0, lightGreen: 1, orange: 2, red: 3 };
 const TIER_RANK: Record<OpportunityTier, number> = { tough: 0, fair: 1, good: 2, hot: 3 };
 
-const exactValue = (row: Measurable, key: Exclude<SortKey, "keyword">) =>
+type NumberKey = Exclude<SortKey, "keyword" | "ip">;
+
+const exactValue = (row: Measurable, key: NumberKey) =>
   key === "score" ? opportunityScore(row.volume, row.competition) : row[key];
 
-const groupRank = (row: Measurable, key: Exclude<SortKey, "keyword">, bands: SortBands) => {
+const groupRank = (row: Measurable, key: NumberKey, bands: SortBands) => {
   if (key === "volume") return VOLUME_RANK[volumeBand(row.volume, bands.volumeRules)];
   if (key === "competition") return COMPETITION_RANK[competitionBand(row.competition, bands.competitionRules)];
   return TIER_RANK[opportunityTier(opportunityScore(row.volume, row.competition))];
@@ -167,7 +174,9 @@ export function sortRows<T extends Measurable>(rows: T[], rules: SortRule[], ban
       const diff =
         key === "keyword"
           ? a.keyword.localeCompare(b.keyword)
-          : index < last
+          : key === "ip"
+            ? (bands.ipRank?.(a.keyword) ?? 0) - (bands.ipRank?.(b.keyword) ?? 0)
+            : index < last
             ? groupRank(a, key, bands) - groupRank(b, key, bands)
             : exactValue(a, key) - exactValue(b, key);
       if (diff !== 0) return direction === "asc" ? diff : -diff;

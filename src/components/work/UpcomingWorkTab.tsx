@@ -13,7 +13,8 @@ import { MovementBadge } from "@/components/ui/Movement";
 import { Button, Checkbox, FieldLabel, Select, TextInput } from "@/components/ui/primitives";
 import { ScorePill } from "@/components/ui/ScorePill";
 import { SortBar, SortHeader, ariaSortOf } from "@/components/ui/SortControls";
-import { TrademarkBadge, TrademarkModal, TrademarkStatus } from "@/components/ui/Trademark";
+import { IP_STATUS, IpBadge, IpModal, IpStatusLine } from "@/components/ui/IpCheck";
+import { TrademarkBadge } from "@/components/ui/Trademark";
 import { HistoryModal } from "@/components/work/HistoryModal";
 import { KeywordFormModal } from "@/components/work/KeywordFormModal";
 import { movementOf } from "@/features/keywords/history";
@@ -28,9 +29,9 @@ import {
   type WorkFilters,
 } from "@/features/keywords/filters";
 import { opportunityScore } from "@/features/keywords/opportunity";
-import type { TrademarkVerdict } from "@/features/keywords/trademarks";
+import { IP_RANK, type IpStatus } from "@/features/keywords/ip";
 import { TRENDS, TYPES, type Keyword, type KeywordType, type Trend } from "@/features/keywords/types";
-import { useTrademarks } from "@/features/keywords/useTrademarks";
+import { useIpCheck } from "@/features/keywords/useIpCheck";
 import { COMPETITION_BANDS, VOLUME_BANDS, competitionColor, volumeColor } from "@/features/settings/colors";
 import { competitionBand } from "@/features/settings/competition";
 import { requestUpload } from "@/features/workspace/events";
@@ -57,8 +58,10 @@ const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
   { value: "ticked", label: "Ticked" },
 ];
 
-/** Saved keywords checked for trademarks, from the top of the current sort. */
-const TRADEMARK_CHECK_LIMIT = 500;
+const IP_FILTER_OPTIONS: { value: IpStatus | "all"; label: string }[] = [
+  { value: "all", label: "All IP results" },
+  ...(["yes", "possible", "no"] as const).map((status) => ({ value: status, label: `IP: ${IP_STATUS[status].label}` })),
+];
 
 const TH = "px-3 py-3 text-[11px] font-semibold tracking-[0.12em] text-cream-200/45 uppercase";
 const TD = "px-3 py-2.5";
@@ -104,7 +107,8 @@ export function UpcomingWorkTab({
   const [panel, setPanel] = useState<"filters" | "columns" | null>(null);
   const [hideNiche, setHideNiche] = useState(false);
   const [colorsOpen, setColorsOpen] = useState(false);
-  const [trademarkOf, setTrademarkOf] = useState<{ keyword: string; verdict: TrademarkVerdict } | null>(null);
+  const [ipOf, setIpOf] = useState<string | null>(null);
+  const [ipFilter, setIpFilter] = useState<IpStatus | "all">("all");
   const [editing, setEditing] = useState<Keyword | null>(null);
   const [moveOpen, setMoveOpen] = useState(false);
   const [historyOf, setHistoryOf] = useState<Keyword | null>(null);
@@ -112,17 +116,21 @@ export function UpcomingWorkTab({
   const setFilters = (patch: Partial<WorkFilters>) => onFiltersChange({ ...filters, ...patch });
   const visibleColumns = new Set(settings.visibleColumns);
 
-  const rows = useMemo(() => {
-    const filtered = applyWorkFilters(keywords, filters, niches);
-    return sortRows(filtered, sortRules, settings);
-  }, [keywords, filters, niches, sortRules, settings]);
+  const allKeywords = useMemo(() => keywords.map((keyword) => keyword.keyword), [keywords]);
+  const ip = useIpCheck(allKeywords);
 
-  const checkKeywords = useMemo(() => rows.slice(0, TRADEMARK_CHECK_LIMIT).map((keyword) => keyword.keyword), [rows]);
-  const trademarks = useTrademarks(checkKeywords);
-  const flagged = useMemo(
-    () => checkKeywords.filter((keyword) => trademarks.verdictOf(keyword)).length,
-    [checkKeywords, trademarks],
-  );
+  const rows = useMemo(() => {
+    const filtered = applyWorkFilters(keywords, filters, niches).filter(
+      (keyword) => ipFilter === "all" || ip.resultOf(keyword.keyword)?.status === ipFilter,
+    );
+    return sortRows(filtered, sortRules, {
+      ...settings,
+      ipRank: (keyword) => {
+        const result = ip.resultOf(keyword);
+        return result ? IP_RANK[result.status] : -1;
+      },
+    });
+  }, [keywords, filters, niches, ipFilter, ip, sortRules, settings]);
 
   const stats = useMemo(() => {
     const pending = keywords.filter((keyword) => keyword.status === "pending");
@@ -178,7 +186,7 @@ export function UpcomingWorkTab({
 
   const togglePanel = (name: "filters" | "columns") => setPanel((current) => (current === name ? null : name));
 
-  const columnCount = 5 + COLUMNS.filter((column) => column.key !== "niche" && visibleColumns.has(column.key)).length;
+  const columnCount = 6 +COLUMNS.filter((column) => column.key !== "niche" && visibleColumns.has(column.key)).length;
 
   return (
     <div className="space-y-5 pb-24">
@@ -264,6 +272,18 @@ export function UpcomingWorkTab({
             ))}
           </Select>
 
+          <Select
+            aria-label="Copyright/IP"
+            value={ipFilter}
+            onChange={(event) => setIpFilter(event.target.value as IpStatus | "all")}
+          >
+            {IP_FILTER_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </Select>
+
           <div className="ml-auto flex flex-wrap items-center gap-2">
             <Button
               variant={panel === "filters" || advancedCount > 0 ? "chipActive" : "chip"}
@@ -274,6 +294,18 @@ export function UpcomingWorkTab({
               {advancedCount > 0 ? (
                 <span className="rounded-md bg-brand-500 px-1.5 text-[10px] font-bold text-white">{advancedCount}</span>
               ) : null}
+            </Button>
+            <Button variant="chip" onClick={() => setColorsOpen(true)}>
+              <span aria-hidden="true" className="flex -space-x-1">
+                {VOLUME_BANDS.map((band) => (
+                  <span
+                    key={band}
+                    className="size-2.5 rounded-full ring-1 ring-night-950"
+                    style={{ backgroundColor: settings.colors.volume[band] }}
+                  />
+                ))}
+              </span>
+              Colours
             </Button>
             <Button variant={panel === "columns" ? "chipActive" : "chip"} aria-expanded={panel === "columns"} onClick={() => togglePanel("columns")}>
               <Columns className="size-4" /> Columns
@@ -426,15 +458,11 @@ export function UpcomingWorkTab({
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.07] px-4 py-2.5">
           <SortBar rules={sortRules} onChange={setSortRules} emptyLabel="Order added" />
-          <TrademarkStatus
-            check={trademarks}
-            flagged={flagged}
-            scope={rows.length > TRADEMARK_CHECK_LIMIT ? `in the first ${formatNumber(TRADEMARK_CHECK_LIMIT)}` : "in this list"}
-          />
+          <IpStatusLine check={ip} />
         </div>
 
         <div data-shot="work-table" className="max-h-[72vh] overflow-auto">
-          <table className="w-full min-w-[56rem] border-collapse text-sm">
+          <table className="w-full min-w-[62rem] border-collapse text-sm">
             <thead className="sticky top-0 z-10 bg-[#140d09]/95 text-left backdrop-blur">
               <tr className="border-b border-white/[0.08]">
                 <th scope="col" className="w-11 px-4 py-3">
@@ -461,6 +489,9 @@ export function UpcomingWorkTab({
                     <SortHeader sortKey="competition" rules={sortRules} onChange={setSortRules} />
                   </th>
                 ) : null}
+                <th scope="col" className={TH} aria-sort={ariaSortOf(sortRules, "ip")}>
+                  <SortHeader sortKey="ip" rules={sortRules} onChange={setSortRules} />
+                </th>
                 {visibleColumns.has("trend") ? (
                   <th scope="col" className={TH}>
                     Trend
@@ -520,7 +551,8 @@ export function UpcomingWorkTab({
                   const movement = movementOf(keyword);
                   const occasion = detectOccasion(keyword.keyword);
                   const readings = keyword.history?.length ?? 1;
-                  const verdict = trademarks.verdictOf(keyword.keyword);
+                  const result = ip.resultOf(keyword.keyword);
+                  const verdict = ip.trademarkOf(keyword.keyword);
 
                   return (
                     <tr
@@ -549,7 +581,7 @@ export function UpcomingWorkTab({
                           {verdict ? (
                             <TrademarkBadge
                               verdict={verdict}
-                              onOpen={() => setTrademarkOf({ keyword: keyword.keyword, verdict })}
+                              onOpen={() => setIpOf(keyword.keyword)}
                             />
                           ) : null}
                         </div>
@@ -576,6 +608,10 @@ export function UpcomingWorkTab({
                           </span>
                         </td>
                       ) : null}
+
+                      <td className={TD}>
+                        <IpBadge result={result} onOpen={() => setIpOf(keyword.keyword)} />
+                      </td>
 
                       {visibleColumns.has("trend") ? (
                         <td className={TD}>
@@ -725,10 +761,11 @@ export function UpcomingWorkTab({
 
       <ColorRulesModal open={colorsOpen} onClose={() => setColorsOpen(false)} workspace={workspace} />
 
-      <TrademarkModal
-        keyword={trademarkOf?.keyword ?? null}
-        verdict={trademarkOf?.verdict ?? null}
-        onClose={() => setTrademarkOf(null)}
+      <IpModal
+        keyword={ipOf}
+        result={ipOf ? ip.resultOf(ipOf) : undefined}
+        trademark={ipOf ? ip.trademarkOf(ipOf) : null}
+        onClose={() => setIpOf(null)}
       />
 
       <NichePickerModal

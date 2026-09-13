@@ -134,14 +134,20 @@ const GENERIC_PHRASES = new Set([
   "pride month",
 ]);
 
+/** An everyday word, or its plural ("friends"): too common to be a name on its own. */
+export const isCommonWord = (word: string) =>
+  COMMON.has(word) || FILLER.has(word) || (word.endsWith("s") && (COMMON.has(word.slice(0, -1)) || FILLER.has(word.slice(0, -1))));
+
 /** Longest brand phrase checked, in words. */
 const MAX_WORDS = 4;
 /** Phrases looked up per keyword, longest first. */
 const MAX_TERMS = 6;
 
-/** Lowercase words only: "Mickey's T-Shirt" → "mickeys t shirt". */
+/** Lowercase words only, accents dropped: "Mickey's T-Shirt" → "mickeys t shirt", "Pokémon" → "pokemon". */
 export const normalizeTerm = (text: string) =>
   text
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
     .toLowerCase()
     .replace(/['’]/g, "")
     .replace(/[^a-z0-9]+/g, " ")
@@ -162,7 +168,7 @@ export function trademarkTerms(keyword: string): string[] {
       for (let start = 0; start + size <= segment.length; start += 1) {
         const gram = segment.slice(start, start + size);
         if (STOP.has(gram[0]) || STOP.has(gram[gram.length - 1])) continue;
-        if (size === 1 && (COMMON.has(gram[0]) || gram[0].length < 3)) continue;
+        if (size === 1 && (isCommonWord(gram[0]) || gram[0].length < 3)) continue;
         const phrase = gram.join(" ");
         if (!GENERIC_PHRASES.has(phrase)) terms.add(phrase);
       }

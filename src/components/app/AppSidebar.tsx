@@ -3,7 +3,7 @@
 import { useMemo, useState, type ReactElement, type ReactNode, type SVGProps } from "react";
 
 import { PaletteShortcut } from "@/components/app/CommandPalette";
-import { Calendar, ChevronRight, Copies, ICONS, LayoutGrid } from "@/components/marketing/icons";
+import { Calendar, ChevronRight, Copies, ICONS, LayoutGrid, Sliders } from "@/components/marketing/icons";
 import { Wordmark } from "@/components/shared/Wordmark";
 import { findDuplicates } from "@/features/keywords/duplicates";
 import { withDescendantIds } from "@/features/niches/tree";
@@ -44,6 +44,7 @@ export function AppSidebar({
   onNiche,
   onManageNiches,
   onOpenPalette,
+  onOpenColors,
   footer,
 }: {
   workspace: Workspace;
@@ -54,6 +55,8 @@ export function AppSidebar({
   onNiche: (id: string | "all" | "none") => void;
   onManageNiches: () => void;
   onOpenPalette: () => void;
+  /** Opens Colour rules, where volume and competition colours are chosen. */
+  onOpenColors: () => void;
   footer?: ReactNode;
 }) {
   const { keywords, niches, tree } = workspace;
@@ -206,6 +209,21 @@ export function AppSidebar({
             </button>
           );
         })}
+        <button
+          type="button"
+          onClick={onOpenColors}
+          className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-cream-200/65 transition-colors hover:bg-white/[0.04] hover:text-white"
+        >
+          <Sliders className="size-4" />
+          Colour rules
+          <span aria-hidden="true" className="ml-auto flex -space-x-1">
+            {[workspace.settings.colors.volume.high, workspace.settings.colors.volume.mid, workspace.settings.colors.volume.low].map(
+              (color, index) => (
+                <span key={index} className="size-2.5 rounded-full ring-1 ring-night-950" style={{ backgroundColor: color }} />
+              ),
+            )}
+          </span>
+        </button>
       </nav>
 
       <div className="mt-7 flex items-center justify-between px-5">

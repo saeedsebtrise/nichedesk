@@ -16,10 +16,14 @@ export const SORT_LABEL: Record<SortKey, string> = {
   score: "Score",
   volume: "Volume",
   competition: "Competition",
+  ip: "Copyright/IP",
 };
 
-export const directionText = (key: SortKey, direction: SortDirection) =>
-  key === "keyword" ? (direction === "asc" ? "A → Z" : "Z → A") : direction === "asc" ? "Low → high" : "High → low";
+export function directionText(key: SortKey, direction: SortDirection) {
+  if (key === "keyword") return direction === "asc" ? "A → Z" : "Z → A";
+  if (key === "ip") return direction === "asc" ? "No → yes" : "Yes → no";
+  return direction === "asc" ? "Low → high" : "High → low";
+}
 
 export const ariaSortOf = (rules: SortRule[], key: SortKey) =>
   rules[0]?.key === key ? (rules[0].direction === "asc" ? "ascending" : "descending") : undefined;
@@ -84,7 +88,7 @@ export function SortHeader({
 export function SortBar({
   rules,
   onChange,
-  keys = ["keyword", "score", "volume", "competition"],
+  keys = ["keyword", "score", "volume", "competition", "ip"],
   emptyLabel = "File order",
 }: {
   rules: SortRule[];
