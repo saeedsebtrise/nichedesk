@@ -1,3 +1,4 @@
+import type { BandColors, VolumeRules } from "@/features/settings/colors";
 import type { CompetitionRules } from "@/features/settings/competition";
 import type { License, LicenseCheck } from "@/features/licenses/licenses";
 import type { Niche } from "@/features/niches/types";
@@ -7,6 +8,9 @@ export type ColumnKey = "niche" | "volume" | "competition" | "tick" | "trend" | 
 
 export type Settings = {
   competitionRules: CompetitionRules;
+  volumeRules: VolumeRules;
+  /** The colour of each competition and volume band, as #rrggbb. */
+  colors: BandColors;
   visibleColumns: ColumnKey[];
 };
 

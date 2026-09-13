@@ -67,10 +67,11 @@ await page
 
 await page.getByRole("button", { name: /Filters & colours/ }).click();
 await settle();
-await page
-  .locator("div", { has: page.getByRole("heading", { name: "Competition color rules" }) })
-  .last()
-  .screenshot({ path: shot("color-rules.png") });
+await page.getByRole("button", { name: "Edit colours" }).click();
+await settle();
+await page.locator("dialog[open]").screenshot({ path: shot("color-rules.png") });
+await page.keyboard.press("Escape");
+await settle();
 await page.getByRole("button", { name: /Filters & colours/ }).click();
 await settle();
 

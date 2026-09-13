@@ -18,7 +18,9 @@ import { countByOccasion, seasonRows } from "@/features/keywords/occasions";
 import { opportunityScore } from "@/features/keywords/opportunity";
 import { TRENDS, TYPES } from "@/features/keywords/types";
 import { withDescendantIds } from "@/features/niches/tree";
-import { BAND_CLASS, competitionBand, type CompetitionBand } from "@/features/settings/competition";
+import { ColorBadge } from "@/components/ui/ColorBadge";
+import { competitionColor, volumeColor } from "@/features/settings/colors";
+import { competitionBand, type CompetitionBand } from "@/features/settings/competition";
 import { requestUpload } from "@/features/workspace/events";
 import type { Workspace } from "@/features/workspace/useWorkspace";
 import { cn, formatNumber } from "@/lib/utils";
@@ -26,11 +28,11 @@ import { cn, formatNumber } from "@/lib/utils";
 const UploadIcon = ICONS.upload;
 const TreeIcon = ICONS.tree;
 
-const BANDS: { band: CompetitionBand; label: string; bar: string }[] = [
-  { band: "green", label: "Low", bar: "bg-emerald-600" },
-  { band: "lightGreen", label: "Moderate", bar: "bg-emerald-300" },
-  { band: "orange", label: "High", bar: "bg-amber-400" },
-  { band: "red", label: "Very high", bar: "bg-red-500" },
+const BANDS: { band: CompetitionBand; label: string }[] = [
+  { band: "green", label: "Low" },
+  { band: "lightGreen", label: "Moderate" },
+  { band: "orange", label: "High" },
+  { band: "red", label: "Very high" },
 ];
 
 const percent = (part: number, whole: number) => (whole > 0 ? Math.round((part / whole) * 100) : 0);
@@ -416,16 +418,18 @@ export function OverviewTab({
                       <span className="block truncate font-medium text-white">{keyword.keyword}</span>
                       <span className="mt-0.5 flex items-center gap-2 text-xs text-cream-200/45">
                         <NicheTag niches={niches} nicheId={keyword.nicheId} />
-                        <span className="tabular">vol {formatNumber(keyword.volume)}</span>
+                        <span className="flex items-center gap-1">
+                          vol
+                          <ColorBadge size="sm" color={volumeColor(keyword.volume, settings)}>
+                            {formatNumber(keyword.volume)}
+                          </ColorBadge>
+                        </span>
                       </span>
                     </span>
-                    <span
-                      className={cn(
-                        "tabular hidden rounded-md px-2 py-0.5 text-xs font-bold sm:inline-block",
-                        BAND_CLASS[competitionBand(keyword.competition, rules)],
-                      )}
-                    >
-                      {formatNumber(keyword.competition)}
+                    <span className="hidden sm:inline-block">
+                      <ColorBadge color={competitionColor(keyword.competition, settings)}>
+                        {formatNumber(keyword.competition)}
+                      </ColorBadge>
                     </span>
                     <ScorePill score={score} />
                   </button>
@@ -438,10 +442,11 @@ export function OverviewTab({
         <div className="space-y-5">
           <Panel title="Competition mix" description="Where your keywords fall against your colour cut-offs">
             <div className="flex h-3 overflow-hidden rounded-full bg-white/[0.06]">
-              {BANDS.map(({ band, bar }) => (
+              {BANDS.map(({ band }) => (
                 <motion.span
                   key={band}
-                  className={cn("h-full", bar)}
+                  className="h-full"
+                  style={{ backgroundColor: settings.colors.competition[band] }}
                   initial={{ width: 0 }}
                   animate={{ width: `${percent(stats.bands[band], stats.total)}%` }}
                   transition={{ duration: 0.9, ease: EASE }}
@@ -449,9 +454,13 @@ export function OverviewTab({
               ))}
             </div>
             <ul className="mt-4 grid grid-cols-2 gap-2">
-              {BANDS.map(({ band, label, bar }) => (
+              {BANDS.map(({ band, label }) => (
                 <li key={band} className="flex items-center gap-2 rounded-xl bg-white/[0.03] px-3 py-2 text-sm">
-                  <span aria-hidden="true" className={cn("size-2.5 rounded-full", bar)} />
+                  <span
+                    aria-hidden="true"
+                    className="size-2.5 rounded-full"
+                    style={{ backgroundColor: settings.colors.competition[band] }}
+                  />
                   <span className="text-cream-200/65">{label}</span>
                   <span className="tabular ml-auto font-semibold text-white">{formatNumber(stats.bands[band])}</span>
                 </li>

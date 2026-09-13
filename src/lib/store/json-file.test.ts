@@ -241,6 +241,18 @@ describe("updateSettings", () => {
 
     expect(settings.competitionRules).toEqual({ green: 2000, lightGreen: 5000, orange: 10000 });
   });
+
+  it("stores volume cut-offs and the chosen colours", async () => {
+    const colors = {
+      competition: { green: "#16a34a", lightGreen: "#a7f3d0", orange: "#f97316", red: "#ef4444" },
+      volume: { high: "#38bdf8", mid: "#065f46", low: "#fde047" },
+    };
+    await store.updateSettings({ volumeRules: { low: 1000, high: 200 }, colors });
+
+    const { settings } = await store.read();
+    expect(settings.volumeRules).toEqual({ low: 200, high: 1000 });
+    expect(settings.colors).toEqual(colors);
+  });
 });
 
 describe("automatic subniches", () => {

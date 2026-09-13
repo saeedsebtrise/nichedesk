@@ -18,7 +18,8 @@ import {
 } from "@/features/keywords/occasions";
 import { opportunityScore } from "@/features/keywords/opportunity";
 import type { Keyword } from "@/features/keywords/types";
-import { BAND_CLASS, competitionBand, type CompetitionRules } from "@/features/settings/competition";
+import { ColorBadge } from "@/components/ui/ColorBadge";
+import { competitionColor, volumeColor, type ColorSettings } from "@/features/settings/colors";
 import type { Workspace } from "@/features/workspace/useWorkspace";
 import { cn, formatNumber } from "@/lib/utils";
 
@@ -83,13 +84,13 @@ function OccasionPlan({
   row,
   today,
   keywords,
-  rules,
+  colors,
   onOpenWork,
 }: {
   row: SeasonRow;
   today: Date;
   keywords: Keyword[];
-  rules: CompetitionRules;
+  colors: ColorSettings;
   onOpenWork: (patch: Partial<WorkFilters>) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -192,17 +193,15 @@ function OccasionPlan({
                   {keyword.keyword}
                   <span className="sr-only">{done ? " (done)" : " (pending)"}</span>
                 </span>
-                <span className="hidden text-xs text-cream-200/50 tabular-nums sm:inline">
-                  vol {formatNumber(keyword.volume)}
+                <span className="hidden items-center gap-1 text-xs text-cream-200/50 sm:flex">
+                  vol
+                  <ColorBadge size="sm" color={volumeColor(keyword.volume, colors)}>
+                    {formatNumber(keyword.volume)}
+                  </ColorBadge>
                 </span>
-                <span
-                  className={cn(
-                    "tabular rounded-md px-1.5 py-0.5 text-[10px] font-bold",
-                    BAND_CLASS[competitionBand(keyword.competition, rules)],
-                  )}
-                >
+                <ColorBadge size="sm" color={competitionColor(keyword.competition, colors)}>
                   {formatNumber(keyword.competition)}
-                </span>
+                </ColorBadge>
                 <ScorePill score={opportunityScore(keyword.volume, keyword.competition)} />
               </button>
             </li>
@@ -356,7 +355,7 @@ export function CalendarTab({
                 row={row}
                 today={today}
                 keywords={groups.get(row.occasion.id) ?? []}
-                rules={workspace.settings.competitionRules}
+                colors={workspace.settings}
                 onOpenWork={onOpenWork}
               />
             ))}

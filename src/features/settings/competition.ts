@@ -45,11 +45,3 @@ export const BAND_CLASS: Record<CompetitionBand, string> = {
   orange: "bg-amber-400 text-amber-950",
   red: "bg-red-500 text-white",
 };
-
-/** Faint row tints for the dark work table. */
-export const BAND_ROW_CLASS: Record<CompetitionBand, string> = {
-  green: "bg-emerald-500/[0.07]",
-  lightGreen: "bg-emerald-300/[0.035]",
-  orange: "bg-amber-400/[0.045]",
-  red: "bg-red-500/[0.045]",
-};

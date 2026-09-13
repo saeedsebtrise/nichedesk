@@ -4,19 +4,32 @@ import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { timeAgo, useNowMinute } from "@/components/app/clock";
-import { ArrowRight, Close, ICONS, Inbox, Plus, Trash } from "@/components/marketing/icons";
+import { ArrowRight, Close, ICONS, Inbox, Plus, Sliders, Trash } from "@/components/marketing/icons";
 import { NichePickerModal, type AutoSubniches } from "@/components/niches/NichePickerModal";
+import { ColorRulesModal } from "@/components/settings/ColorRulesModal";
+import { ColorBadge } from "@/components/ui/ColorBadge";
 import { MovementBadge } from "@/components/ui/Movement";
 import { Banner, Button, Checkbox, TextInput } from "@/components/ui/primitives";
 import { ScorePill } from "@/components/ui/ScorePill";
+import { SortBar, SortHeader, ariaSortOf } from "@/components/ui/SortControls";
+import { TrademarkBadge, TrademarkModal, TrademarkStatus } from "@/components/ui/Trademark";
 import { useToast } from "@/components/ui/toast";
 import { parseErankCsv } from "@/features/keywords/csv";
-import { EMPTY_IMPORT_FILTERS, applyImportFilters, type ImportFilters } from "@/features/keywords/filters";
+import {
+  EMPTY_IMPORT_FILTERS,
+  applyImportFilters,
+  sortRows,
+  type ImportFilters,
+  type SortRule,
+} from "@/features/keywords/filters";
 import { percentChange } from "@/features/keywords/history";
 import { opportunityScore } from "@/features/keywords/opportunity";
+import type { TrademarkVerdict } from "@/features/keywords/trademarks";
 import type { ImportRow, Keyword } from "@/features/keywords/types";
+import { useTrademarks } from "@/features/keywords/useTrademarks";
 import type { InboxBatch } from "@/lib/store/types";
-import { BAND_CLASS, competitionBand } from "@/features/settings/competition";
+import { competitionColor, volumeColor } from "@/features/settings/colors";
+import { competitionBand } from "@/features/settings/competition";
 import { UPLOAD_EVENT } from "@/features/workspace/events";
 import type { Workspace } from "@/features/workspace/useWorkspace";
 import { cn, formatNumber } from "@/lib/utils";
@@ -27,6 +40,15 @@ const UploadIcon = ICONS.upload;
 const PAGE_SIZE = 200;
 
 type FilterKey = "including" | "excluding" | "volume" | "competition";
+
+/** Show every row, hide the ones matching a trademark, or show only those. */
+type TrademarkFilter = "all" | "hide" | "only";
+
+const TRADEMARK_FILTERS: { value: TrademarkFilter; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "hide", label: "Hide ™" },
+  { value: "only", label: "Only ™" },
+];
 
 const FILTER_LABEL: Record<FilterKey, string> = {
   including: "Including",
@@ -78,9 +100,35 @@ export function SortKeywordTab({ workspace, onShow }: { workspace: Workspace; on
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [dragging, setDragging] = useState(false);
+  const [sortRules, setSortRules] = useState<SortRule[]>([]);
+  const [trademarkFilter, setTrademarkFilter] = useState<TrademarkFilter>("all");
+  const [colorsOpen, setColorsOpen] = useState(false);
+  const [trademarkOf, setTrademarkOf] = useState<{ keyword: string; verdict: TrademarkVerdict } | null>(null);
   const toast = useToast();
 
-  const filtered = useMemo(() => applyImportFilters(rows, filters), [rows, filters]);
+  const matching = useMemo(
+    () => sortRows(applyImportFilters(rows, filters), sortRules, settings),
+    [rows, filters, sortRules, settings],
+  );
+
+  // Rows on screen are checked as they scroll in; the trademark filter needs every match checked.
+  const checkKeywords = useMemo(
+    () => (trademarkFilter === "all" ? matching.slice(0, visibleCount) : matching).map((row) => row.keyword),
+    [matching, visibleCount, trademarkFilter],
+  );
+  const trademarks = useTrademarks(checkKeywords, rows.length > 0);
+  const flagged = useMemo(
+    () => checkKeywords.filter((keyword) => trademarks.verdictOf(keyword)).length,
+    [checkKeywords, trademarks],
+  );
+
+  const filtered = useMemo(
+    () =>
+      trademarkFilter === "all"
+        ? matching
+        : matching.filter((row) => Boolean(trademarks.verdictOf(row.keyword)) === (trademarkFilter === "only")),
+    [matching, trademarkFilter, trademarks],
+  );
   const visibleRows = filtered.slice(0, visibleCount);
 
   // Selection survives filter changes, so only count what is currently matched.
@@ -500,6 +548,35 @@ export function SortKeywordTab({ workspace, onShow }: { workspace: Workspace; on
                   Clear all
                 </Button>
               ) : null}
+
+              <div className="ml-auto flex flex-wrap items-center gap-2">
+                <div
+                  role="group"
+                  aria-label="Trademarks"
+                  className="inline-flex items-center rounded-xl border border-white/10 bg-white/[0.03] p-0.5"
+                >
+                  {TRADEMARK_FILTERS.map((option) => {
+                    const active = trademarkFilter === option.value;
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        aria-pressed={active}
+                        onClick={() => setTrademarkFilter(option.value)}
+                        className={cn(
+                          "rounded-[0.6rem] px-2.5 py-1.5 text-xs font-semibold transition-colors",
+                          active ? "bg-white/[0.1] text-white shadow-sm" : "text-cream-200/55 hover:text-white",
+                        )}
+                      >
+                        {option.value === "all" ? "All keywords" : option.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <Button variant="chip" onClick={() => setColorsOpen(true)}>
+                  <Sliders className="size-4" /> Colours
+                </Button>
+              </div>
             </div>
 
             {openFilters.length > 0 ? (
@@ -573,6 +650,15 @@ export function SortKeywordTab({ workspace, onShow }: { workspace: Workspace; on
             ) : null}
           </div>
 
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.025] px-4 py-3">
+            <SortBar rules={sortRules} onChange={setSortRules} />
+            <TrademarkStatus
+              check={trademarks}
+              flagged={flagged}
+              scope={trademarkFilter === "all" ? "in the rows shown" : "in this list"}
+            />
+          </div>
+
           <div className="flex flex-wrap items-center gap-3">
             <label className="flex items-center gap-2 text-sm font-semibold text-white">
               <Checkbox
@@ -616,17 +702,17 @@ export function SortKeywordTab({ workspace, onShow }: { workspace: Workspace; on
                   <th scope="col" className="w-12 px-4 py-3">
                     <span className="sr-only">Select</span>
                   </th>
-                  <th scope="col" className={TH}>
-                    Keyword
+                  <th scope="col" className={TH} aria-sort={ariaSortOf(sortRules, "keyword")}>
+                    <SortHeader sortKey="keyword" rules={sortRules} onChange={setSortRules} />
                   </th>
-                  <th scope="col" className={TH}>
-                    Score
+                  <th scope="col" className={TH} aria-sort={ariaSortOf(sortRules, "score")}>
+                    <SortHeader sortKey="score" rules={sortRules} onChange={setSortRules} />
                   </th>
-                  <th scope="col" className={cn(TH, "text-right")}>
-                    Volume
+                  <th scope="col" className={cn(TH, "text-right")} aria-sort={ariaSortOf(sortRules, "volume")}>
+                    <SortHeader sortKey="volume" rules={sortRules} onChange={setSortRules} />
                   </th>
-                  <th scope="col" className={TH}>
-                    Competition
+                  <th scope="col" className={TH} aria-sort={ariaSortOf(sortRules, "competition")}>
+                    <SortHeader sortKey="competition" rules={sortRules} onChange={setSortRules} />
                   </th>
                   <th scope="col" className="w-12 px-2 py-3">
                     <span className="sr-only">Remove</span>
@@ -642,9 +728,9 @@ export function SortKeywordTab({ workspace, onShow }: { workspace: Workspace; on
                   </tr>
                 ) : (
                   visibleRows.map((row) => {
-                    const band = competitionBand(row.competition, settings.competitionRules);
                     const isSelected = selected.has(row.id);
                     const saved = savedByText.get(row.keyword.toLowerCase());
+                    const verdict = trademarks.verdictOf(row.keyword);
 
                     return (
                       <tr
@@ -668,15 +754,24 @@ export function SortKeywordTab({ workspace, onShow }: { workspace: Workspace; on
                               <MovementBadge change={percentChange(saved.volume, row.volume)} goodWhen="up" />
                             </span>
                           ) : null}
+                          {verdict ? (
+                            <TrademarkBadge
+                              verdict={verdict}
+                              className="ml-2"
+                              onOpen={() => setTrademarkOf({ keyword: row.keyword, verdict })}
+                            />
+                          ) : null}
                         </td>
                         <td className="px-4 py-2.5">
                           <ScorePill score={opportunityScore(row.volume, row.competition)} />
                         </td>
-                        <td className="tabular px-4 py-2.5 text-right text-cream-200/75">{formatNumber(row.volume)}</td>
+                        <td className="px-4 py-2.5 text-right">
+                          <ColorBadge color={volumeColor(row.volume, settings)}>{formatNumber(row.volume)}</ColorBadge>
+                        </td>
                         <td className="px-4 py-2.5">
-                          <span className={cn("tabular inline-block rounded-md px-2 py-0.5 text-xs font-bold", BAND_CLASS[band])}>
+                          <ColorBadge color={competitionColor(row.competition, settings)}>
                             {formatNumber(row.competition)}
-                          </span>
+                          </ColorBadge>
                         </td>
                         <td className="px-2 py-2.5 text-right">
                           <button
@@ -724,6 +819,14 @@ export function SortKeywordTab({ workspace, onShow }: { workspace: Workspace; on
           </motion.div>
         ) : null}
       </AnimatePresence>
+
+      <ColorRulesModal open={colorsOpen} onClose={() => setColorsOpen(false)} workspace={workspace} />
+
+      <TrademarkModal
+        keyword={trademarkOf?.keyword ?? null}
+        verdict={trademarkOf?.verdict ?? null}
+        onClose={() => setTrademarkOf(null)}
+      />
 
       <NichePickerModal
         open={pickerOpen}

@@ -28,5 +28,5 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   // /api/extension/* is deliberately absent: the extension proves itself with a license key.
-  matcher: ["/app/:path*", "/api/data", "/api/niches/:path*", "/api/keywords/:path*", "/api/settings", "/api/inbox/:path*"],
+  matcher: ["/app/:path*", "/api/data", "/api/niches/:path*", "/api/keywords/:path*", "/api/settings", "/api/inbox/:path*", "/api/trademarks"],
 };

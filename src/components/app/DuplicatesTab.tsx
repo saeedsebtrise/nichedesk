@@ -9,7 +9,8 @@ import { ScorePill } from "@/components/ui/ScorePill";
 import { useToast } from "@/components/ui/toast";
 import { findDuplicates, type DuplicateGroup } from "@/features/keywords/duplicates";
 import { opportunityScore } from "@/features/keywords/opportunity";
-import { BAND_CLASS, competitionBand } from "@/features/settings/competition";
+import { ColorBadge } from "@/components/ui/ColorBadge";
+import { competitionColor, volumeColor } from "@/features/settings/colors";
 import type { Workspace } from "@/features/workspace/useWorkspace";
 import { cn, formatNumber } from "@/lib/utils";
 
@@ -113,7 +114,6 @@ export function DuplicatesTab({ workspace }: { workspace: Workspace }) {
                 <legend className="sr-only">Copy to keep</legend>
                 {group.keywords.map((keyword) => {
                   const kept = keeper === keyword.id;
-                  const band = competitionBand(keyword.competition, settings.competitionRules);
                   return (
                     <label
                       key={keyword.id}
@@ -142,11 +142,18 @@ export function DuplicatesTab({ workspace }: { workspace: Workspace }) {
                         </span>
                         <span className="mt-1 flex flex-wrap items-center gap-2 text-xs text-cream-200/45">
                           <NicheTag niches={niches} nicheId={keyword.nicheId} />
-                          <span className="tabular">vol {formatNumber(keyword.volume)}</span>
+                          <span className="flex items-center gap-1">
+                            vol
+                            <ColorBadge size="sm" color={volumeColor(keyword.volume, settings)}>
+                              {formatNumber(keyword.volume)}
+                            </ColorBadge>
+                          </span>
                         </span>
                       </span>
-                      <span className={cn("tabular hidden rounded-md px-2 py-0.5 text-xs font-bold sm:inline-block", BAND_CLASS[band])}>
-                        {formatNumber(keyword.competition)}
+                      <span className="hidden sm:inline-block">
+                        <ColorBadge color={competitionColor(keyword.competition, settings)}>
+                          {formatNumber(keyword.competition)}
+                        </ColorBadge>
                       </span>
                       <ScorePill score={opportunityScore(keyword.volume, keyword.competition)} />
                     </label>

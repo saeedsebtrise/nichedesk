@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
 
 import type { Niche } from "../niches/types";
-import { EMPTY_IMPORT_FILTERS, EMPTY_WORK_FILTERS, applyImportFilters, applyWorkFilters, sortKeywords } from "./filters";
+import {
+  EMPTY_IMPORT_FILTERS,
+  EMPTY_WORK_FILTERS,
+  applyImportFilters,
+  applyWorkFilters,
+  sortKeywords,
+  sortRows,
+  toggleSortRule,
+} from "./filters";
 import type { ImportRow, Keyword } from "./types";
 
 const row = (keyword: string, volume: number, competition: number): ImportRow => ({
@@ -132,5 +140,61 @@ describe("sortKeywords", () => {
 
     expect(sorted.map((k) => k.id)).toEqual(["high", "low"]);
     expect(input.map((k) => k.id)).toEqual(["low", "high"]);
+  });
+});
+
+describe("sortRows with several levels", () => {
+  const bands = {
+    competitionRules: { green: 5000, lightGreen: 10000, orange: 20000 },
+    volumeRules: { low: 200, high: 1000 },
+  };
+  const list = [
+    row("a", 150, 25000),
+    row("b", 5000, 30000),
+    row("c", 800, 2000),
+    row("d", 90, 1000),
+    row("e", 3000, 4000),
+  ];
+
+  it("sorts by the one column when there is one level", () => {
+    const sorted = sortRows(list, [{ key: "competition", direction: "desc" }], bands);
+
+    expect(sorted.map((r) => r.id)).toEqual(["b", "a", "e", "c", "d"]);
+  });
+
+  it("groups by competition colour, then orders each group by volume", () => {
+    const sorted = sortRows(
+      list,
+      [
+        { key: "competition", direction: "desc" },
+        { key: "volume", direction: "asc" },
+      ],
+      bands,
+    );
+
+    // Red (a, b) first with the lower volume on top, then green (c, d, e) by volume.
+    expect(sorted.map((r) => r.id)).toEqual(["a", "b", "d", "c", "e"]);
+  });
+
+  it("keeps the original order with no sort", () => {
+    expect(sortRows(list, [], bands).map((r) => r.id)).toEqual(["a", "b", "c", "d", "e"]);
+  });
+});
+
+describe("toggleSortRule", () => {
+  it("sorts by a new column alone, and flips the leading one", () => {
+    const byVolume = toggleSortRule([], "volume");
+    expect(byVolume).toEqual([{ key: "volume", direction: "desc" }]);
+    expect(toggleSortRule(byVolume, "volume")).toEqual([{ key: "volume", direction: "asc" }]);
+    expect(toggleSortRule(byVolume, "keyword")).toEqual([{ key: "keyword", direction: "asc" }]);
+  });
+
+  it("adds a level with add, and flips a level already there", () => {
+    const two = toggleSortRule([{ key: "competition", direction: "desc" }], "volume", true);
+    expect(two).toEqual([
+      { key: "competition", direction: "desc" },
+      { key: "volume", direction: "desc" },
+    ]);
+    expect(toggleSortRule(two, "volume", true)[1]).toEqual({ key: "volume", direction: "asc" });
   });
 });

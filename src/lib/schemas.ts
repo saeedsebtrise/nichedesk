@@ -19,6 +19,7 @@ export const nichePatchSchema = z
 export const nicheDeleteModeSchema = z.enum(["reparent", "cascade"]).default("reparent");
 
 const count = z.coerce.number().int().min(0).max(1_000_000_000);
+const hexColor = z.string().regex(/^#[0-9a-f]{6}$/i, "Colours must look like #22c55e.");
 
 export const newKeywordSchema = z.object({
   keyword: z.string().min(1, "Enter a keyword.").max(300),
@@ -119,10 +120,21 @@ export const inboxSendSchema = licenseCheckSchema.extend({
     .max(5_000, "That is more than 5,000 keywords — send a smaller page."),
 });
 
+export const trademarkLookupSchema = z.object({
+  terms: z.array(z.string().min(1).max(120)).min(1).max(120, "Check at most 120 phrases at a time."),
+});
+
 export const settingsPatchSchema = z
   .object({
     competitionRules: z
       .object({ green: count, lightGreen: count, orange: count })
+      .optional(),
+    volumeRules: z.object({ low: count, high: count }).optional(),
+    colors: z
+      .object({
+        competition: z.object({ green: hexColor, lightGreen: hexColor, orange: hexColor, red: hexColor }),
+        volume: z.object({ high: hexColor, mid: hexColor, low: hexColor }),
+      })
       .optional(),
     visibleColumns: z
       .array(z.enum(["niche", "volume", "competition", "tick", "trend", "type"]))

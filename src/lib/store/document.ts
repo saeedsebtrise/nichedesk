@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 
+import { DEFAULT_COLORS, DEFAULT_VOLUME_RULES, normalizeColors, normalizeVolumeRules } from "@/features/settings/colors";
 import { DEFAULT_COMPETITION_RULES, normalizeRules } from "@/features/settings/competition";
 import {
   evaluateLicense,
@@ -50,6 +51,8 @@ export const emptyWorkspace = (): StoreData => ({
   keywords: [],
   settings: {
     competitionRules: { ...DEFAULT_COMPETITION_RULES },
+    volumeRules: { ...DEFAULT_VOLUME_RULES },
+    colors: normalizeColors(DEFAULT_COLORS),
     visibleColumns: [...DEFAULT_COLUMNS],
   },
   inbox: [],
@@ -118,6 +121,11 @@ export function coerceWorkspace(raw: unknown): StoreData {
         ...DEFAULT_COMPETITION_RULES,
         ...(data.settings?.competitionRules ?? {}),
       }),
+      volumeRules: normalizeVolumeRules({
+        ...DEFAULT_VOLUME_RULES,
+        ...(data.settings?.volumeRules ?? {}),
+      }),
+      colors: normalizeColors(data.settings?.colors),
       visibleColumns: Array.isArray(data.settings?.visibleColumns)
         ? data.settings.visibleColumns
         : [...DEFAULT_COLUMNS],
@@ -550,6 +558,12 @@ export abstract class DocumentStore implements Store {
     return this.updateWorkspace((data) => {
       if (patch.competitionRules) {
         data.settings.competitionRules = normalizeRules(patch.competitionRules);
+      }
+      if (patch.volumeRules) {
+        data.settings.volumeRules = normalizeVolumeRules(patch.volumeRules);
+      }
+      if (patch.colors) {
+        data.settings.colors = normalizeColors(patch.colors);
       }
       if (patch.visibleColumns) {
         data.settings.visibleColumns = patch.visibleColumns;

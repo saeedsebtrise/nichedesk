@@ -1,7 +1,14 @@
 import type { Niche } from "../niches/types";
 import { withDescendantIds } from "../niches/tree";
+import { DEFAULT_VOLUME_RULES, volumeBand, type VolumeBand, type VolumeRules } from "../settings/colors";
+import {
+  DEFAULT_COMPETITION_RULES,
+  competitionBand,
+  type CompetitionBand,
+  type CompetitionRules,
+} from "../settings/competition";
 import { detectOccasion, type OccasionId } from "./occasions";
-import { opportunityScore } from "./opportunity";
+import { opportunityScore, opportunityTier, type OpportunityTier } from "./opportunity";
 import type { ImportRow, Keyword, KeywordType, Status, Trend } from "./types";
 
 /** Filters on the unsaved CSV preview. */
@@ -118,15 +125,79 @@ export function applyWorkFilters(keywords: Keyword[], filters: WorkFilters, nich
 
 export type SortKey = "keyword" | "volume" | "competition" | "score";
 export type SortDirection = "asc" | "desc";
+export type SortRule = { key: SortKey; direction: SortDirection };
+
+/** Sorting by up to this many columns at once. */
+export const MAX_SORT_RULES = 3;
+
+/** The colour cut-offs, which group rows when another sort level follows. */
+export type SortBands = { competitionRules: CompetitionRules; volumeRules: VolumeRules };
+
+const DEFAULT_BANDS: SortBands = { competitionRules: DEFAULT_COMPETITION_RULES, volumeRules: DEFAULT_VOLUME_RULES };
+
+const VOLUME_RANK: Record<VolumeBand, number> = { low: 0, mid: 1, high: 2 };
+const COMPETITION_RANK: Record<CompetitionBand, number> = { green: 0, lightGreen: 1, orange: 2, red: 3 };
+const TIER_RANK: Record<OpportunityTier, number> = { tough: 0, fair: 1, good: 2, hot: 3 };
+
+const exactValue = (row: Measurable, key: Exclude<SortKey, "keyword">) =>
+  key === "score" ? opportunityScore(row.volume, row.competition) : row[key];
+
+const groupRank = (row: Measurable, key: Exclude<SortKey, "keyword">, bands: SortBands) => {
+  if (key === "volume") return VOLUME_RANK[volumeBand(row.volume, bands.volumeRules)];
+  if (key === "competition") return COMPETITION_RANK[competitionBand(row.competition, bands.competitionRules)];
+  return TIER_RANK[opportunityTier(opportunityScore(row.volume, row.competition))];
+};
+
+/**
+ * Sorts by several columns at once, e.g. competition high → low, then volume
+ * low → high.
+ *
+ * Volumes and competition counts almost never tie, so a second level sorting
+ * on exact numbers would change nothing. Every level but the last therefore
+ * sorts by colour group (volume band, competition band, score tier), and the
+ * next level orders the rows inside each group. The last level uses exact
+ * values. The sort is stable: rows that tie keep their order.
+ */
+export function sortRows<T extends Measurable>(rows: T[], rules: SortRule[], bands: SortBands = DEFAULT_BANDS): T[] {
+  if (rules.length === 0) return [...rows];
+  const last = rules.length - 1;
+
+  return [...rows].sort((a, b) => {
+    for (const [index, { key, direction }] of rules.entries()) {
+      const diff =
+        key === "keyword"
+          ? a.keyword.localeCompare(b.keyword)
+          : index < last
+            ? groupRank(a, key, bands) - groupRank(b, key, bands)
+            : exactValue(a, key) - exactValue(b, key);
+      if (diff !== 0) return direction === "asc" ? diff : -diff;
+    }
+    return 0;
+  });
+}
 
 export function sortKeywords(keywords: Keyword[], key: SortKey, direction: SortDirection): Keyword[] {
-  const factor = direction === "asc" ? 1 : -1;
+  return sortRows(keywords, [{ key, direction }]);
+}
 
-  return [...keywords].sort((a, b) => {
-    if (key === "keyword") return a.keyword.localeCompare(b.keyword) * factor;
-    if (key === "score") {
-      return (opportunityScore(a.volume, a.competition) - opportunityScore(b.volume, b.competition)) * factor;
-    }
-    return (a[key] - b[key]) * factor;
-  });
+/** Text sorts A → Z first; numbers high → low. */
+export const defaultDirection = (key: SortKey): SortDirection => (key === "keyword" ? "asc" : "desc");
+
+/**
+ * The sort after a column header is clicked.
+ *
+ * A plain click sorts by that column alone, or flips it when it already leads.
+ * `add` (Shift+click, or "Then by") flips the column if it is already a level,
+ * and otherwise adds it as the next level.
+ */
+export function toggleSortRule(rules: SortRule[], key: SortKey, add = false): SortRule[] {
+  const flip = (rule: SortRule): SortRule => ({ key: rule.key, direction: rule.direction === "asc" ? "desc" : "asc" });
+  const existing = rules.findIndex((rule) => rule.key === key);
+
+  if (add) {
+    if (existing >= 0) return rules.map((rule, index) => (index === existing ? flip(rule) : rule));
+    return [...rules, { key, direction: defaultDirection(key) }].slice(0, MAX_SORT_RULES);
+  }
+  if (existing === 0) return [flip(rules[0]), ...rules.slice(1)];
+  return [{ key, direction: defaultDirection(key) }];
 }

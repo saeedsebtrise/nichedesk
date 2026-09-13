@@ -7,9 +7,13 @@ import { Check, Circle, Close, Columns, ICONS, Pencil, Plus, Sliders, Trash, Tre
 import { EASE } from "@/components/marketing/motion";
 import { NichePickerModal } from "@/components/niches/NichePickerModal";
 import { NicheTag, NicheTreeSelect } from "@/components/niches/NicheTree";
+import { ColorRulesModal } from "@/components/settings/ColorRulesModal";
+import { ColorBadge } from "@/components/ui/ColorBadge";
 import { MovementBadge } from "@/components/ui/Movement";
 import { Button, Checkbox, FieldLabel, Select, TextInput } from "@/components/ui/primitives";
 import { ScorePill } from "@/components/ui/ScorePill";
+import { SortBar, SortHeader, ariaSortOf } from "@/components/ui/SortControls";
+import { TrademarkBadge, TrademarkModal, TrademarkStatus } from "@/components/ui/Trademark";
 import { HistoryModal } from "@/components/work/HistoryModal";
 import { KeywordFormModal } from "@/components/work/KeywordFormModal";
 import { movementOf } from "@/features/keywords/history";
@@ -18,15 +22,17 @@ import { downloadCsv, keywordsToCsv } from "@/features/keywords/export";
 import {
   EMPTY_WORK_FILTERS,
   applyWorkFilters,
-  sortKeywords,
-  type SortDirection,
-  type SortKey,
+  sortRows,
+  type SortRule,
   type StatusFilter,
   type WorkFilters,
 } from "@/features/keywords/filters";
 import { opportunityScore } from "@/features/keywords/opportunity";
+import type { TrademarkVerdict } from "@/features/keywords/trademarks";
 import { TRENDS, TYPES, type Keyword, type KeywordType, type Trend } from "@/features/keywords/types";
-import { BAND_CLASS, BAND_ROW_CLASS, competitionBand, type CompetitionRules } from "@/features/settings/competition";
+import { useTrademarks } from "@/features/keywords/useTrademarks";
+import { COMPETITION_BANDS, VOLUME_BANDS, competitionColor, volumeColor } from "@/features/settings/colors";
+import { competitionBand } from "@/features/settings/competition";
 import { requestUpload } from "@/features/workspace/events";
 import type { Workspace } from "@/features/workspace/useWorkspace";
 import type { ColumnKey } from "@/lib/store/types";
@@ -51,11 +57,8 @@ const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
   { value: "ticked", label: "Ticked" },
 ];
 
-const RULES = [
-  { key: "green", dot: "bg-emerald-600", label: "Below", suffix: "= green" },
-  { key: "lightGreen", dot: "bg-emerald-300", label: "Up to", suffix: "= light green" },
-  { key: "orange", dot: "bg-amber-400", label: "Up to", suffix: "= orange" },
-] as const;
+/** Saved keywords checked for trademarks, from the top of the current sort. */
+const TRADEMARK_CHECK_LIMIT = 500;
 
 const TH = "px-3 py-3 text-[11px] font-semibold tracking-[0.12em] text-cream-200/45 uppercase";
 const TD = "px-3 py-2.5";
@@ -72,32 +75,6 @@ function StatTile({ label, value, hint, dot }: { label: string; value: number; h
       <div className="font-display tabular mt-2 text-3xl font-bold text-white">{formatNumber(value)}</div>
       <div className="mt-1 truncate text-xs text-cream-200/45">{hint}</div>
     </div>
-  );
-}
-
-function SortButton({
-  label,
-  active,
-  direction,
-  onClick,
-}: {
-  label: string;
-  active: boolean;
-  direction: SortDirection;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "inline-flex items-center gap-1 text-[11px] font-semibold tracking-[0.12em] uppercase transition-colors",
-        active ? "text-brand-300" : "text-cream-200/45 hover:text-white",
-      )}
-    >
-      {label}
-      {active ? <span aria-hidden="true">{direction === "asc" ? "↑" : "↓"}</span> : null}
-    </button>
   );
 }
 
@@ -122,12 +99,12 @@ export function UpcomingWorkTab({
 }) {
   const { keywords, niches, tree, settings } = workspace;
 
-  const [sortKey, setSortKey] = useState<SortKey>("volume");
-  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+  const [sortRules, setSortRules] = useState<SortRule[]>([{ key: "volume", direction: "desc" }]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [panel, setPanel] = useState<"filters" | "columns" | null>(null);
   const [hideNiche, setHideNiche] = useState(false);
-  const [ruleDraft, setRuleDraft] = useState<CompetitionRules>(settings.competitionRules);
+  const [colorsOpen, setColorsOpen] = useState(false);
+  const [trademarkOf, setTrademarkOf] = useState<{ keyword: string; verdict: TrademarkVerdict } | null>(null);
   const [editing, setEditing] = useState<Keyword | null>(null);
   const [moveOpen, setMoveOpen] = useState(false);
   const [historyOf, setHistoryOf] = useState<Keyword | null>(null);
@@ -137,8 +114,15 @@ export function UpcomingWorkTab({
 
   const rows = useMemo(() => {
     const filtered = applyWorkFilters(keywords, filters, niches);
-    return sortKeywords(filtered, sortKey, sortDirection);
-  }, [keywords, filters, niches, sortKey, sortDirection]);
+    return sortRows(filtered, sortRules, settings);
+  }, [keywords, filters, niches, sortRules, settings]);
+
+  const checkKeywords = useMemo(() => rows.slice(0, TRADEMARK_CHECK_LIMIT).map((keyword) => keyword.keyword), [rows]);
+  const trademarks = useTrademarks(checkKeywords);
+  const flagged = useMemo(
+    () => checkKeywords.filter((keyword) => trademarks.verdictOf(keyword)).length,
+    [checkKeywords, trademarks],
+  );
 
   const stats = useMemo(() => {
     const pending = keywords.filter((keyword) => keyword.status === "pending");
@@ -167,18 +151,6 @@ export function UpcomingWorkTab({
     filters.trend !== "all" ||
     filters.type !== "all" ||
     advancedCount > 0;
-
-  const toggleSort = (key: SortKey) => {
-    if (key === sortKey) {
-      setSortDirection((current) => (current === "asc" ? "desc" : "asc"));
-      return;
-    }
-    setSortKey(key);
-    setSortDirection(key === "keyword" ? "asc" : "desc");
-  };
-
-  const ariaSort = (key: SortKey) =>
-    key === sortKey ? (sortDirection === "asc" ? "ascending" : "descending") : undefined;
 
   const toggleColumn = (key: ColumnKey) => {
     const next = visibleColumns.has(key)
@@ -356,47 +328,38 @@ export function UpcomingWorkTab({
                   </Button>
                 </div>
 
-                <div className="rounded-xl border border-white/[0.07] bg-night-950/40 p-3">
-                  <h3 className="text-sm font-semibold text-white">Competition color rules</h3>
-                  <p className="mt-0.5 text-xs text-cream-200/50">
-                    Set your own cut-offs — competition numbers are coloured by where they fall.
-                  </p>
-                  <div className="mt-3 flex flex-wrap items-center gap-2">
-                    {RULES.map((rule) => (
-                      <span
-                        key={rule.key}
-                        className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-2.5 py-1.5"
-                      >
-                        <span aria-hidden="true" className={cn("size-2.5 rounded-full", rule.dot)} />
-                        <span className="text-xs font-semibold whitespace-nowrap text-cream-200/70">{rule.label}</span>
-                        <TextInput
-                          inputMode="numeric"
-                          aria-label={`${rule.label} ${rule.suffix}`}
-                          value={String(ruleDraft[rule.key])}
-                          onChange={(event) =>
-                            setRuleDraft({
-                              ...ruleDraft,
-                              [rule.key]: Number.parseInt(event.target.value.replace(/\D/g, ""), 10) || 0,
-                            })
-                          }
-                          // TextInput is w-full; a max width keeps each rule on one line.
-                          className="max-w-24 py-1 text-xs"
-                        />
-                        <span className="text-xs whitespace-nowrap text-cream-200/45">{rule.suffix}</span>
-                      </span>
-                    ))}
-                    <span className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-2.5 py-2 text-xs text-cream-200/50">
-                      <span aria-hidden="true" className="size-2.5 rounded-full bg-red-500" />
-                      Above that = red
-                    </span>
-                    <Button
-                      variant="outline"
-                      onClick={() => workspace.saveSettings({ competitionRules: ruleDraft })}
-                      disabled={workspace.busy}
-                    >
-                      Apply
-                    </Button>
+                <div className="flex flex-wrap items-center gap-3 rounded-xl border border-white/[0.07] bg-night-950/40 p-3">
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-sm font-semibold text-white">Colour rules</h3>
+                    <p className="mt-0.5 text-xs text-cream-200/50">
+                      Choose your own numbers and colours for volume and competition.
+                    </p>
                   </div>
+                  <span aria-hidden="true" className="flex flex-wrap items-center gap-3 text-[11px] text-cream-200/45">
+                    <span className="flex items-center gap-1">
+                      Volume
+                      {VOLUME_BANDS.map((band) => (
+                        <span
+                          key={band}
+                          className="size-3 rounded-full ring-1 ring-white/15"
+                          style={{ backgroundColor: settings.colors.volume[band] }}
+                        />
+                      ))}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      Competition
+                      {COMPETITION_BANDS.map((band) => (
+                        <span
+                          key={band}
+                          className="size-3 rounded-full ring-1 ring-white/15"
+                          style={{ backgroundColor: settings.colors.competition[band] }}
+                        />
+                      ))}
+                    </span>
+                  </span>
+                  <Button variant="outline" onClick={() => setColorsOpen(true)}>
+                    Edit colours
+                  </Button>
                 </div>
               </div>
             </motion.div>
@@ -461,6 +424,15 @@ export function UpcomingWorkTab({
           ) : null}
         </div>
 
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.07] px-4 py-2.5">
+          <SortBar rules={sortRules} onChange={setSortRules} emptyLabel="Order added" />
+          <TrademarkStatus
+            check={trademarks}
+            flagged={flagged}
+            scope={rows.length > TRADEMARK_CHECK_LIMIT ? `in the first ${formatNumber(TRADEMARK_CHECK_LIMIT)}` : "in this list"}
+          />
+        </div>
+
         <div data-shot="work-table" className="max-h-[72vh] overflow-auto">
           <table className="w-full min-w-[56rem] border-collapse text-sm">
             <thead className="sticky top-0 z-10 bg-[#140d09]/95 text-left backdrop-blur">
@@ -473,25 +445,20 @@ export function UpcomingWorkTab({
                     onChange={(event) => setSelected(event.target.checked ? new Set(rows.map((row) => row.id)) : new Set())}
                   />
                 </th>
-                <th scope="col" className={TH} aria-sort={ariaSort("keyword")}>
-                  <SortButton label="Keyword" active={sortKey === "keyword"} direction={sortDirection} onClick={() => toggleSort("keyword")} />
+                <th scope="col" className={TH} aria-sort={ariaSortOf(sortRules, "keyword")}>
+                  <SortHeader sortKey="keyword" rules={sortRules} onChange={setSortRules} />
                 </th>
-                <th scope="col" className={TH} aria-sort={ariaSort("score")}>
-                  <SortButton label="Score" active={sortKey === "score"} direction={sortDirection} onClick={() => toggleSort("score")} />
+                <th scope="col" className={TH} aria-sort={ariaSortOf(sortRules, "score")}>
+                  <SortHeader sortKey="score" rules={sortRules} onChange={setSortRules} />
                 </th>
                 {visibleColumns.has("volume") ? (
-                  <th scope="col" className={cn(TH, "text-right")} aria-sort={ariaSort("volume")}>
-                    <SortButton label="Volume" active={sortKey === "volume"} direction={sortDirection} onClick={() => toggleSort("volume")} />
+                  <th scope="col" className={cn(TH, "text-right")} aria-sort={ariaSortOf(sortRules, "volume")}>
+                    <SortHeader sortKey="volume" rules={sortRules} onChange={setSortRules} />
                   </th>
                 ) : null}
                 {visibleColumns.has("competition") ? (
-                  <th scope="col" className={TH} aria-sort={ariaSort("competition")}>
-                    <SortButton
-                      label="Competition"
-                      active={sortKey === "competition"}
-                      direction={sortDirection}
-                      onClick={() => toggleSort("competition")}
-                    />
+                  <th scope="col" className={TH} aria-sort={ariaSortOf(sortRules, "competition")}>
+                    <SortHeader sortKey="competition" rules={sortRules} onChange={setSortRules} />
                   </th>
                 ) : null}
                 {visibleColumns.has("trend") ? (
@@ -547,19 +514,21 @@ export function UpcomingWorkTab({
                 </tr>
               ) : (
                 rows.map((keyword) => {
-                  const band = competitionBand(keyword.competition, settings.competitionRules);
+                  const competitionTint = competitionColor(keyword.competition, settings);
                   const done = keyword.status === "done";
                   const isSelected = selected.has(keyword.id);
                   const movement = movementOf(keyword);
                   const occasion = detectOccasion(keyword.keyword);
                   const readings = keyword.history?.length ?? 1;
+                  const verdict = trademarks.verdictOf(keyword.keyword);
 
                   return (
                     <tr
                       key={keyword.id}
+                      style={{ "--row-tint": `${competitionTint}14` } as React.CSSProperties}
                       className={cn(
                         "group border-b border-white/[0.05] transition-colors hover:bg-white/[0.03]",
-                        isSelected ? "bg-brand-500/[0.08]" : visibleColumns.has("competition") && BAND_ROW_CLASS[band],
+                        isSelected ? "bg-brand-500/[0.08]" : visibleColumns.has("competition") && "bg-(--row-tint)",
                       )}
                     >
                       <td className="px-4 py-2.5">
@@ -577,6 +546,12 @@ export function UpcomingWorkTab({
                               {occasion.emoji} {occasion.label}
                             </span>
                           ) : null}
+                          {verdict ? (
+                            <TrademarkBadge
+                              verdict={verdict}
+                              onOpen={() => setTrademarkOf({ keyword: keyword.keyword, verdict })}
+                            />
+                          ) : null}
                         </div>
                       </td>
 
@@ -588,7 +563,7 @@ export function UpcomingWorkTab({
                         <td className={cn(TD, "text-right")}>
                           <span className="inline-flex items-center justify-end gap-1.5">
                             <MovementBadge change={movement?.volume ?? null} goodWhen="up" />
-                            <span className="tabular text-cream-200/75">{formatNumber(keyword.volume)}</span>
+                            <ColorBadge color={volumeColor(keyword.volume, settings)}>{formatNumber(keyword.volume)}</ColorBadge>
                           </span>
                         </td>
                       ) : null}
@@ -596,9 +571,7 @@ export function UpcomingWorkTab({
                       {visibleColumns.has("competition") ? (
                         <td className={TD}>
                           <span className="inline-flex items-center gap-1.5">
-                            <span className={cn("tabular inline-block rounded-md px-2 py-0.5 text-xs font-bold", BAND_CLASS[band])}>
-                              {formatNumber(keyword.competition)}
-                            </span>
+                            <ColorBadge color={competitionTint}>{formatNumber(keyword.competition)}</ColorBadge>
                             <MovementBadge change={movement?.competition ?? null} goodWhen="down" />
                           </span>
                         </td>
@@ -749,6 +722,14 @@ export function UpcomingWorkTab({
       <KeywordFormModal open={editing !== null} onClose={() => setEditing(null)} workspace={workspace} keyword={editing} />
 
       <HistoryModal keyword={historyOf} onClose={() => setHistoryOf(null)} />
+
+      <ColorRulesModal open={colorsOpen} onClose={() => setColorsOpen(false)} workspace={workspace} />
+
+      <TrademarkModal
+        keyword={trademarkOf?.keyword ?? null}
+        verdict={trademarkOf?.verdict ?? null}
+        onClose={() => setTrademarkOf(null)}
+      />
 
       <NichePickerModal
         open={moveOpen}
